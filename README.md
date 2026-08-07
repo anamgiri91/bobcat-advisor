@@ -2,7 +2,7 @@
 
 This RAG system covers student experiences with Computer Science professors and courses at Texas State University (TXST). To be precise, it answers questions about teaching style, exam difficulty, workload, grading policies, and which professor to choose for a given course.  
 This is really valuable because official university resources like course catalogs, faculty pages, and registration systems only describe what a course covers, not what it is actually like to take it. For instance, I spend couple of hours everytime reviewing courses and professors during my registration. This RAG pipeline helps students like me by combining that scattered information and helps answer a direct question with get a grounded, source-cited answer in seconds.
----
+
 
 ## Document Sources
 
