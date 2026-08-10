@@ -14,6 +14,10 @@
 # index — no disk needed, and disks aren't available on Render's free plan
 # anyway. If you later add new review documents and rebuild the index
 # locally, just commit the updated backend/data/ and redeploy.
+#
+# Note: no startCommand here either — Docker-runtime Render services must
+# take their start command from the image's own CMD (see backend/Dockerfile
+# and backend/scripts/start.sh, which run migrations then start uvicorn).
 
 databases:
   - name: bobcat-advisor-db
@@ -40,4 +44,3 @@ services:
         value: data/chroma_db
       - key: CORS_ORIGINS
         sync: false  # set to your deployed frontend URL after it's created
-    startCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
