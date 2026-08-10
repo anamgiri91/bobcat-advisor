@@ -1,12 +1,19 @@
 # Render deployment blueprint for the Bobcat Advisor backend + database.
 #
 # The frontend is NOT included here — deploy /frontend separately as a
-# Render Static Site (or Vercel/Netlify): build command `npm run build`,
-# publish directory `dist`, and set VITE_API_BASE_URL to this backend's
-# public URL (e.g. https://bobcat-advisor-api.onrender.com/api).
+# Render Static Site: build command `npm run build`, publish directory
+# `dist`, and set VITE_API_BASE_URL to this backend's public URL
+# (e.g. https://bobcat-advisor-api.onrender.com/api).
 #
 # Usage: from the repo root, "New +" -> "Blueprint" in the Render dashboard,
 # point it at this repo. Render will provision both services below.
+#
+# Note: no persistent disk here. The ChromaDB index + chunks.jsonl are
+# committed to git and baked into the Docker image at build time (see
+# backend/Dockerfile's `COPY . .`), so every deploy already has the vector
+# index — no disk needed, and disks aren't available on Render's free plan
+# anyway. If you later add new review documents and rebuild the index
+# locally, just commit the updated backend/data/ and redeploy.
 
 databases:
   - name: bobcat-advisor-db
@@ -33,12 +40,4 @@ services:
         value: data/chroma_db
       - key: CORS_ORIGINS
         sync: false  # set to your deployed frontend URL after it's created
-    disk:
-      name: chroma-data
-      mountPath: /app/data
-      sizeGB: 1
-    # Runs migrations, then starts the API. The Chroma vector index itself
-    # must be built once via a Render shell:
-    #   docker compose exec / render shell -> bash scripts/build_index.sh
-    # (it persists on the mounted disk across deploys).
     startCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
