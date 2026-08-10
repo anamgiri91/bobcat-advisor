@@ -1,16 +1,41 @@
-# Generated data — regenerate with: python ingest.py
-data/
-chroma_db/
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
-.env
-
-# Mac
-.DS_Store
+*.egg-info/
 
 # Virtual environments
 venv/
 .venv/
+
+# Environment variables — never commit real secrets (GROQ_API_KEY, DATABASE_URL)
+.env
+backend/.env
+frontend/.env
+# .env.example files ARE tracked — they contain no secrets, just placeholders
+
+# Node / frontend build output
+node_modules/
+frontend/dist/
+npm-debug.log*
+
+# Vector index + chunk data
+# Comment these two lines OUT if you want the prebuilt ChromaDB index and
+# chunks.jsonl committed (recommended here — it's ~4MB and lets anyone who
+# clones the repo run it immediately without `build_index.sh`).
+# backend/data/chroma_db/
+# backend/data/chunks.jsonl
+
+# Sentence-transformers model cache (re-downloaded at runtime, don't commit)
+backend/models/
+
+# Docker
+*.pid
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

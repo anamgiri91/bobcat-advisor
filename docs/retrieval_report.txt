@@ -1,0 +1,517 @@
+TXST RAG RETRIEVAL TEST REPORT
+=================================================================
+Database path: data/chroma_db
+Output file  : retrieval_report.txt
+=================================================================
+
+=================================================================
+QUERY (factual): What do students say about Lee Koh's CS2318 Assembly course?
+=================================================================
+
+EXPECTED ANSWER:
+  • Students say Lee Koh's CS2318 Assembly course is demanding and requires real time outside of class.
+  • Reviews mention that Koh is knowledgeable, but lectures can be lecture-heavy, boring, unclear, or hard to follow.
+  • Students also mention needing to understand assignments deeply, use notes, office hours, textbook, lecture recordings, or outside resources.
+
+RETRIEVED CHUNKS (8 total):
+
+-----------------------------------------------------------------
+Result 1  [score: 0.343] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr. Koh expects his students to work really hard in his classes. I ended up having to retake assembly again with another professor, but Koh's class made the other class relatively easy. There's a bit of a language barrier, but if you really want to learn a lot about assembly, take Koh.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 2  [score: 0.384] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr.Koh is knowledgeable in assembly language, but his lectures lack engagement and structure. The large class size makes it difficult for him to provide individual support, and it sometimes feels like he struggles to keep up with the pace of the course. More interaction and clearer explanations would greatly improve the learning experience.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 3  [score: 0.385] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Koh is knowledgable and puts a lot of time into his job. He can be a little tough to follow at times but will always be helpful if you ask. If you aren't prepared to study and do the work, you will do poorly because Assembly language can be a tough subject. People that don't like him are likely to prefer being spoon-fed lecture material.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 4  [score: 0.482] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Koh is a solid professor. He was the first professor I had that made me genuinely interested in computer science. He gives you ample opportunities and resources to succeed in his class in the form of lecture notes, past test questions, and recordings of his lectures. If you put in the work to truly understand the material, you will be fine.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 5  [score: 0.482] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+You need to dedicate a lot of time to teaching yourself this course in Koh's class. His lectures are loosely structured and incredibly hard to follow. He has thick accent and fluctuates his volume. He will be explaining important information at a mumble. His notes are frustrating to look through b/c it's organized poorly w/ zip files. Good luck.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 6  [score: 0.485] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+He's knowledgeable and passionate; however, his accent can get in the way. You HAVE TO TRY to pay attention as best as you can. Assembly is tricky, so you WILL need to take time out of your day to review material and start the assignments early as possible. If you don't take this class seriously, guaranteed you will NOT get through this class easy.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 7  [score: 0.502] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+He knows LOTS about assembly. He just is not great at teaching it. Lectures go off topic often. Tests are fair and covers lecture material exclusively. Assignments assist with the lack of a proper lecture. He has a hard accent but I believe it isn't right to say he is bad because of it. Try to be memorable. (i.e. "How is your day?") goes far.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 8  [score: 0.506] ✓
+Type      : review
+Professor : Lee Koh
+Course    : CS2318
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Took him for both DSA and assembly. His lecture notes and sample exams are helpful. Rambles a lot but when he teaches, he gets into the details. Multiple choice on the exam come from what he writes on the board or what he says during the lectures. Overall liked him a lot.
+-----------------------------------------------------------------
+
+→ PASS
+
+GROUNDING CHECK:
+Every claim in the app answer should trace back to a chunk above.
+
+=================================================================
+QUERY (factual): What do students say about Keshav Bhandari's exams in CS2308?
+=================================================================
+
+EXPECTED ANSWER:
+  • Students say Keshav Bhandari's CS2308 exams can be very difficult and may go beyond what was clearly taught in class.
+  • Some reviews say students felt confused, underprepared, or that lecture/slides were not enough for the exams.
+
+RETRIEVED CHUNKS (8 total):
+
+-----------------------------------------------------------------
+Result 1  [score: 0.422] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+He is a concept-first professor, ensuring that you learn the concepts instead of just memorizing lines of code to do well. His group projects are interesting and usually pretty tailor-made to fit the class. His exams are straight-forward and tests your understanding of lecture material. Overall, Bhandari is a well-liked and engaging professor.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 2  [score: 0.539] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+You won't learn a thing in class because he only goes over the basics and dumps completely foreign content on the exam. He purposely makes confusing questions and only gives a vague idea of the topics covered. Exams are online and proctored and you can't go back to previous questions.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 3  [score: 0.590] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+This the most honest review you are going to read about him - Okay he is a really sweet person so nothing agaist him but I really didn't like how he teaches. I liked the class lectures but they get boring and a lot of the times he goes over the same thing again and again its gets annyoing then because you stop paying attent.he hops on the nxt tpc.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 4  [score: 0.603] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+If you show up for every class, read every slide that he posts, and be honest in the exams, you are bound to fail! He finds fun in showing students that he is good at what he does, but along the way, he forgets that his students are still learning the basics DON'T TAKE HIS CLASS if you are in your early semesters, he will shake your confidence!
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 5  [score: 0.605] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dont ever take this class. Worst experience of my life. I just sat in class and learned nothing. The instructor teaches incorrectly and provides no proper guidance. Most of the students seem confused about what is being taught, and it feels like the instructor does not fully understand the material.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 6  [score: 0.668] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Attended all classes, did every assignment, yet I'm at risk of a poor grade. His teaching lacks structure, repeats topics, jumps randomly, and tests on unrelated hard material. After exam 2, feels like he expects cheating. Regret taking the course; being honest gets you a B/ C at best without cheating. Big NO, would never take his class again.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 7  [score: 0.697] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+He's really intimidating because he calls on people randomly all the time and is very interactive with the class, but he's a really cool guy and actually tells us about things we'll need to use in real life situations and jobs. Tests were take home and he curves too, and he's pretty generous with grades and due dates.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 8  [score: 0.708] ✓
+Type      : review
+Professor : Keshav Bhandari
+Course    : CS2308
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Honestly if you want a easy grade for the class then he is your guy. The exams are online except for the final and projects do count more. In terms of lecture style and teaching he is all over the place and goes at a fast pace. He does care about your education but he is just very high strung during lecture. Overall he is a good professor.
+-----------------------------------------------------------------
+
+⚠ Data sparsity: {'Keshav Bhandari'} have few chunks, weakest ones included. Not necessarily a retrieval bug.
+
+→ PASS
+
+GROUNDING CHECK:
+Every claim in the app answer should trace back to a chunk above.
+
+=================================================================
+QUERY (factual): How do students describe Martin Burtscher's workload in CS4380?
+=================================================================
+
+EXPECTED ANSWER:
+  • Students describe Martin Burtscher's CS4380 as challenging and workload-heavy.
+  • Reviews mention projects, strict deadlines, difficult homework or programs, and the need to make time for the class.
+  • Several reviews still say the class is valuable or worth taking.
+
+RETRIEVED CHUNKS (8 total):
+
+-----------------------------------------------------------------
+Result 1  [score: 0.458] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Burtscher spends his time providing obstacles for students instead of resources. This guy edits stuff when related assignments are out (yes, open note homeworks) to trick them into missing points when referring to course resources. Here to waste time. Yours, and his. Project parts hidden arbitrarily way too long, then due in the middle of the day.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 2  [score: 0.535] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Easily one of the best CS professors. This is probably one of the more difficult classes to take in the department. But, everything you do in this class is hard because of the material; not because Burtscher adds any useless work. If you have the chance to take him, sign up immediately.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 3  [score: 0.580] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Hard class. Take it. Extremely applicable information with a professor that breaks it down into somewhat easy pieces to understand. PROJECT HEAVY -- Expect 5-6 hours of purely projects a week. Quality, engaging lectures. Parallel > SWE Project trust. Don't get it? Office hours are goated af. You will be overwhelmed, but you will learn a ton. 10/10.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 4  [score: 0.615] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Smart & passionate but mainly reads slides in class; attend office hours for clarity. Hw is tough, so start early. Collaboration is banned, lots of things count as cheating ie online help, help from classmates, online course. Projects can't go on resumes he explicitly stated that. Good experience for parallel programing though material wise.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 5  [score: 0.620] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr. Burtscher is strict and will challenge you, but it is so worth it. To pass, show up to every class and really listen and take notes because the slides leave out a lot. You'll know every deadline on the first day of class and you will be expected to meet them. Start assignments when they are given. Quality of the TA can make or break your grade.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 6  [score: 0.640] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr Burtscher is a great lecturer. He really tries to teach well and it shows. It is annoying that every week a HW or PROJ is due as some weeks are busy. Projs and HW arent that hard though. Exams are from HW. Reviews last class at start of class really helps cement material. Show up and try and you will pass.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 7  [score: 0.664] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Great Professor he will teach you everything you need to know about parallel and then some. This is tough, I would not recommend if you don't want to put in the hours for this class, especially for the first few projects as they will catch you by surprise. His exams will cover EVERYTHING and then some (forces you to not just blindly memorize).
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 8  [score: 0.665] ✓
+Type      : review
+Professor : Martin Burtscher
+Course    : CS4380
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+If you have the chance to take Dr. Martin Burstcher, please do. He is the kind of professor your friends will tell stories about. Very passionate, decently humble, and cares deeply about his students understanding. Not only that, but the information you are learning is unique, useful, and very fun. Challenging projects but doable with some grit.
+-----------------------------------------------------------------
+
+⚠ Data sparsity: {'Martin Burtscher'} have few chunks, weakest ones included. Not necessarily a retrieval bug.
+
+→ PASS
+
+GROUNDING CHECK:
+Every claim in the app answer should trace back to a chunk above.
+
+=================================================================
+QUERY (factual): What do students say about Apan Qasem for CS3339 Computer Architecture?
+=================================================================
+
+EXPECTED ANSWER:
+  • Students generally describe Apan Qasem positively for CS3339.
+  • Reviews mention that the material can be dense or difficult, but Qasem makes it more bearable with clear lectures, passion for the topic, practice questions, exam reviews, and willingness to help students.
+
+RETRIEVED CHUNKS (8 total):
+
+-----------------------------------------------------------------
+Result 1  [score: 0.433] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Comp. Architecture was enjoyable with Dr. Qasem! Wasn't familiar with hardware concepts or assembly but he made a three-hour lecture engaging and interesting somehow. One group project, midterm, and final. You can bring two sheets of notes to exam. Gives practice questions and reviews for each exam, make sure to utilize those!
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 2  [score: 0.573] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr. Qasem was wonderful to have in class and a blessing for this kind of class. While he recommended reading from the textbook, I got by really well by skimming the chapters and paying genuine attention to the lectures. He makes it incredibly clear what will be on the final exam and does not seek overly ambitious final projects. A real good guy.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 3  [score: 0.579] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Professor Qasem cares, and to have a professor who cares about what you are learning and is so accessible outside of the classroom is HUGE for me. it is a heavy lecture class but It is not boring, he is constantly trying to engage the class to think critically back the topic. Highly recommend him for CS3339!
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 4  [score: 0.582] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+The class material is pretty dense and even pretty complicated, but Qasem makes it bearable. You can tell he's passionate about his work and what he's teaching, and he's always open to explaining/helping students that need a little more. The group project is really fun and his exams aren't too bad if you study his slides and practice problems.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 5  [score: 0.595] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr. Qasem is one of the most clear, organized, and well-prepared professors in the CS department at Txstate. I thoroughly enjoyed his lectures. He was accessible outside of class via slack and made the transition to online class during COVID with ease. For a conceptually difficult course, he made the material crystal clear. Highly recommend.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 6  [score: 0.616] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Took for Computer Architecture. Phenomenal professor, but the material is VERY hard. Workload is reasonable, but it's going to take wayyyy longer than you expect. (4 hr on homework as opposed to your expected 1) His Grader is a psycho and expects absolute perfection. Major project at end of semester. Despite awful hard classs, would take again
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 7  [score: 0.646] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+If you're going to take CS3339, Dr. Qasem is a great choice. You'll be glad you took him. Lectures were a lot better than I expected. Homework helps you learn the material. The last one was tough. He gives you reviews for exams. Use them to prepare! Would definitely take him again.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 8  [score: 0.661] ✓
+Type      : review
+Professor : Apan Qasem
+Course    : CS3339
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Dr. Qasem is an amazing professor, and what really stood out to me was how well he enunciates when speaking. Most professors I have had for my CS undergrad, English is obviously a second language; Qasem, speaks better than most native English speakers. He cares about students' feedback and is reasonable.
+-----------------------------------------------------------------
+
+⚠ Data sparsity: {'Apan Qasem'} have few chunks, weakest ones included. Not necessarily a retrieval bug.
+
+→ PASS
+
+GROUNDING CHECK:
+Every claim in the app answer should trace back to a chunk above.
+
+=================================================================
+QUERY (comparison): How do Jill Seaman and Husain Gholoom compare for CS1428?
+=================================================================
+
+EXPECTED ANSWER:
+  • Student feedback for Jill Seaman in CS1428 is mostly positive.
+  • Reviews describe her as fair, helpful, beginner-friendly, and clear enough for students new to CS.
+  • Student feedback for Husain Gholoom in CS1428 is more negative or mixed.
+  • Reviews mention strict grading, difficult expectations, trick questions, unclear teaching, or problems for beginners.
+
+RETRIEVED CHUNKS (6 total):
+
+-----------------------------------------------------------------
+Result 1  [score: 0.539] ✓
+Type      : review
+Professor : Jill Seaman
+Course    : CS1428
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Seaman was great, though I wish the class size had been smaller. Class is easy if you do the readings & pay attention. Readings are due after almost every class & include regular exercises so you can practice/test your understanding. Sometimes the graders will make a mistake but it was never enough to really impact my grade. I highly recommend her.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 2  [score: 0.779] ✗ HIGH (threshold 0.72 for review)
+Type      : review
+Professor : Husain Gholoom
+Course    : CS1428
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+The fact that this professor is allowed near computers at all, let alone allowed to teach computer science is a mystery that may never be solved. The computer science professors at Texas State tend to be pretty awful but somehow Gholoom makes the rest of them look like shining examples of what a teacher should be.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 3  [score: 0.802] ✗ HIGH (threshold 0.72 for review)
+Type      : review
+Professor : Husain Gholoom
+Course    : CS1428
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+I don't know how I did it, but somehow I managed to scrape by with an A in this class. This isn't a testament to my intelligence nor Gholoom's teaching skills, but rather the stubbornness of mankind. Absolutely avoid this professor like the plague. If you have ANY passion at all for computer science, this man will make you regret being born.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 4  [score: 0.861] ✗ HIGH (threshold 0.72 for review)
+Type      : review
+Professor : Husain Gholoom
+Course    : CS1428
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+A lot of negative feed back but here is something I want share. Mr. Gholoom is the one I like so far, programming assignments is not tricky, and strait to the point. Grader is nice and respond the email very fast. People hate him maybe just because grader had chegg subscribition too.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 5  [score: 0.925] ✗ HIGH (threshold 0.72 for review)
+Type      : review
+Professor : Husain Gholoom
+Course    : CS1428
+Source    : rmp
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Please, do NOT take this professor for any course. He is rude, and talks down to his students. Most of his class is failing because he does not answer our questions or emails, and has not thoroughly explained anything to us all semester. Save yourself time and money but taking a DIFFERENT professor.
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+Result 6  [score: 0.653] ✓ (catalog — threshold 0.75)
+Type      : catalog
+Professor : 
+Course    : CS1428
+Source    : official
+-----------------------------------------------------------------
+FULL CHUNK TEXT:
+Introductory course for computer science majors, minors and others desiring technical introduction to computer science. Contains overview of history and structure of the digital computer, including binary data representation. Problem solving, algorithm development, structured programming, good coding style, and control structures of C++ are emphasized. Prerequisite: [MATH 1315 or MATH 1317 or MATH 1319 or MATH 1329 or MATH 2417 or MATH 2471 with a grade of "C" or better] or [ACT Mathematics score of 24 or better] or [New ACT Mathematics score of 25 or better] or [SAT Mathematics score of 520 or better] or [SAT Math Section score of 550 or better] or [Accuplacer College Mathematics score of 86 or better] or [Compass College Algebra score of 46 or better] or [Next-Generation Advanced Algebra and Functions Test of 263 or better].
+
+----------
+-----------------------------------------------------------------
+
+⚠ Data sparsity: {'Husain Gholoom'} have few chunks, weakest ones included. Not necessarily a retrieval bug.
+
+→ FAIL: scores exceed type-appropriate threshold
+
+GROUNDING CHECK:
+Every claim in the app answer should trace back to a chunk above.
+
+=================================================================
+RESULTS: 4/5 queries passed
+Some queries failed. Check the retrieved full chunks above.
+=================================================================

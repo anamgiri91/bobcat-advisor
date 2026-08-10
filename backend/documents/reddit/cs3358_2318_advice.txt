@@ -1,0 +1,65 @@
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+Koh is not as bad as his ratings suggest. He is very knowledgeable and provides detailed notes and lecture recordings. Assignments are interesting and include detailed instructions and rubrics. Exams are hard but manageable. One downside is that he speaks quietly and lectures can sometimes be boring because he rambles.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+Another Texas State CS student previously described Koh as a great professor. I planned to take Xiaomin Li for CS3358 and Charles King for CS2318 during the summer.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+I am considering taking Xiaomin Li for CS3358 and Charles King for CS2318 during the summer. I would appreciate advice about Assembly and the summer courses.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+CS2318 with Charles King: Assembly was difficult during the first few weeks but became easier once the concepts clicked. Weekly programming assignments covered assembly programming, recursion, floating-point encoding, and user input processing. Attending lectures was important because much of the material was explained verbally or on the whiteboard.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+CS3358 with Xiaomin Li: Li was an excellent instructor. The course covered a large amount of important material that is useful for later CS courses and employment preparation. The slides were very organized and exams were open book. Lectures sometimes included LeetCode-style problem solving. Programming assignments were useful, although somewhat limited because the course was compressed into a summer semester.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+I am taking Xiaomin Li next month and would appreciate any course materials or resources that could help me prepare in advance.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+Do not rely solely on Koh's ratings. His Assembly course provides a thorough introduction to assembly language and how it relates to modern programming languages. The class is challenging but valuable, and the instructor is highly knowledgeable.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+Koh is very knowledgeable, but the course is demanding and requires effort. Office hours are helpful for understanding difficult concepts. Assignments are designed so students must understand the material rather than simply copying solutions. Students should expect handwritten assembly code on quizzes and exams.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+I found Koh somewhat better than expected, but I still relied heavily on outside resources such as YouTube tutorials. In my experience, many CS courses required significant self-study.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+Charles King is often recommended for Assembly because he focuses primarily on whether the code works rather than enforcing many additional rules. Koh is considered a reasonable choice for Data Structures, although the workload can be substantial. Assembly can be difficult because many students are more familiar with C++ than low-level programming.
+
+----------
+
+Source: Reddit | Subreddit: r/txstate | Thread: Advice about CS Professors (CS3358 & CS2318)
+
+I took Assembly with Koh and enjoyed the class. Reading the textbook before class helped significantly.
+
+----------

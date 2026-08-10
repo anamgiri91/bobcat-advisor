@@ -1,0 +1,309 @@
+CS 1308. Computer Literacy and the Internet.
+
+A study of the uses of computers and their effects on society. Text processing, spreadsheets, databases, and Web programming. Does not count for computer science credit towards a minor, a BS, or a BA in computer science.
+
+----------
+
+CS 1309. AI for Everyone.
+
+This course provides an in-depth introduction to the principles and techniques used in artificial intelligence (AI). It covers both foundational and advanced principles underlying AI. It explains the differences between AI, machine learning, and deep learning. It explores critical topics such as neural networks, natural language processing, reinforcement learning, and robotics. Students will gain experience with generative AI tools and prompt engineering. Ethical considerations and potential biases associated with AI are covered, ensuring students are prepared to wield AI tools with integrity and concern for societal impacts. This course will not satisfy CS major or minor requirements.
+
+----------
+
+CS 1319. Fundamentals of Computer Science.
+
+Provides fundamental knowledge of the six layers of computer science as per the ACM CS0 curriculum. The information, hardware, programming, operating system, applications, and communications layers are presented plus appropriate open computer laboratory exercises. Does not count for computer science credit towards a minor, BS, or BA in computer science.
+
+----------
+
+CS 1342. Programming for Scientists and Engineers.
+
+This course is an introduction to computer science and problem solving techniques with applications in engineering and the physical sciences. Topics include an introduction to computer organization, data representation, algorithm development, and computer programming in a high-level language.
+
+----------
+
+CS 1428. Foundations of Computer Science I.
+
+Introductory course for computer science majors, minors and others desiring technical introduction to computer science. Contains overview of history and structure of the digital computer, including binary data representation. Problem solving, algorithm development, structured programming, good coding style, and control structures of C++ are emphasized. Prerequisite: [MATH 1315 or MATH 1317 or MATH 1319 or MATH 1329 or MATH 2417 or MATH 2471 with a grade of "C" or better] or [ACT Mathematics score of 24 or better] or [New ACT Mathematics score of 25 or better] or [SAT Mathematics score of 520 or better] or [SAT Math Section score of 550 or better] or [Accuplacer College Mathematics score of 86 or better] or [Compass College Algebra score of 46 or better] or [Next-Generation Advanced Algebra and Functions Test of 263 or better].
+
+----------
+
+CS 2308. Foundations of Computer Science II.
+
+The course is an introduction to Abstract Data Types (ADTs) including lists, stacks, and queues. Searching and sorting, pointers and dynamic memory allocation, and simple classes and objects also will be covered. The course is a continuation of CS 1428. Prerequisite: CS 1428 with a grade of "C" or better.
+
+----------
+
+CS 2315. Computer Ethics.
+
+This course is primarily for computer science majors, focusing on the ethical codes of the professional societies, the philosophical bases of ethical decision-making, and the examination of several contemporary case studies. (WI) Prerequisites: CS 1428 and [COMM 1310 or COMM 2338] and [ENG 1310 or ENG 1320 or ENG 1321 or ENG 3303] and [PHIL 1305 or PHIL 1320] all with grades of "C" or better.
+
+----------
+
+CS 2318. Assembly Language.
+
+A course covering assembly language programming, including instruction sets, addressing modes, instruction formats, looping, logic, data representation, subroutines and recursion; and the interface between hardware and software. Prerequisites: CS 2308 and MATH 2358 both with grades of "C" or better.
+
+----------
+
+CS 3190. Cooperative Education.
+
+This course provides cooperative education students the opportunity to study particular problems in computer science in an occupational setting. Problems are related to the student's work assignment, culminating in the student's technical report or presentation. A total of 3 hours of cooperative education credit may be applied to the student's major elective. Prerequisite: Minimum 2.25 Overall GPA and instructor approval.
+
+----------
+
+CS 3279A. Career Preparation and Job Search Strategies.
+
+This course will help computer science students plan and launch their careers and find internships. Topics include career assessment, job search strategies, resume writing, interview skills, development of coding skills required for interviews, networking and negotiation. Prerequisite: CS 2308 and CS 2315 both with grades of "C" or better.
+
+----------
+
+CS 3290. Advanced Cooperative Education.
+
+This course provides cooperative education students the opportunity to study particular problems in computer science in an occupational setting. Problems are related to the student's work assignment, culminating in the student's technical report or presentation. A total of 3 hours of cooperative education credit may be applied to the student's major elective. Prerequisite: A minimum 2.25 Overall GPA and instructor approval.
+
+----------
+
+CS 3320. Internet Software Development.
+
+A course providing foundations for the construction and design of static and dynamic Web pages with database applications. This will include server-side and client-side software development. Prerequisite: CS 2308 with a grade of "C" or better or instructor approval.
+
+----------
+
+CS 3339. Computer Architecture.
+
+This course provides instruction on the use of fundamental hardware components. Topics include arithmetic logic units (ALU), single and multiple cycle datapath and control, Reduced Instruction Set Computer (RISC) vs. Complex Instruction Set Computer (CISC) , pipelining, caches, Input/Output, virtual memory and related performance issues. Prerequisite: CS 2308 and [CS 2318 or EE 3320] both with grades of "C" or better.
+
+----------
+
+CS 3354. Object-Oriented Design and Programming.
+
+The course covers object-oriented design principles and programming for students with prior programming experience. The topics include inheritance and polymorphism, object-oriented design process, UML diagrams, design patterns, exception handling and multithreading. Students will design and implement programs in Java. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 3358. Data Structures and Algorithms.
+
+This is a course that covers classic data structures and the analysis of algorithms. Prerequisites: CS 2308 and MATH 2358 both with grades of "C" or better.
+
+----------
+
+CS 3360. Computing Systems Fundamentals.
+
+This course covers fundamental concepts underlying the design and implementation of computing systems. It introduces students to problems that reoccur in computing systems and the tools and algorithms used to solve them. Topics include performance evaluation, resource management and scheduling, concurrency and synchronization, and communication and networks. Prerequisite: [CS 2318 or EE 3320] and CS 3358 both with grades of "C" or better.
+
+----------
+
+CS 3378. Theory of Automata.
+
+An introduction to automata theory, computability, and formal languages. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 3393. Software Testing.
+
+This course introduces basic concepts and techniques for testing software and finding bugs. Topics include test design, test process, unit, integration and system testing, manual and automatic techniques for generation of test inputs and validation of test outputs, and coverage criteria. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 3398. Software Engineering.
+
+This course introduces the study of software design, implementation, and validation techniques through team projects. Structured analysis, programming style, and project documentation are emphasized in large software projects. Prerequisite: CS 3354 and CS 3358 and [CS 2315 or EE 2300] all with grades of "C" or better.
+
+----------
+
+CS 4100. Computer Science Internship.
+
+Provides on-the-job training supervised by computer scientists in industry internship programs approved by the department. Prerequisite: Minimum 2.25 Overall GPA and instructor approval.
+
+----------
+
+CS 4298. Undergraduate Research I.
+
+Supervised individual research project in a mentor-student relationship with a computer science faculty member. Cannot be given degree credit until the satisfactory completion of CS 4299. Prerequisites: Minimum 3.00 Major GPA and instructor approval.
+
+----------
+
+CS 4299. Undergraduate Research II.
+
+Supervised individual research projects in a mentor-student relationship with a computer science faculty member. Prerequisites: CS 4298 with a grade of "C" or better and instructor approval.
+
+----------
+
+CS 4310. Computer Networks.
+
+This course covers the fundamental concepts in the design of computer networks and networking protocols with emphasis on the Internet (TCP/IP) architecture. The covered topics include: protocol layering, media access, internet routing, transport protocols, and applications. Prerequisite: CS 3360 with a grade of "C" or better.
+
+----------
+
+CS 4315. Introduction to Data Mining and Information Retrieval.
+
+This course covers fundamental concepts and techniques in data mining and information retrieval. Data mining topics include classification, cluster analysis and pattern mining. Information retrieval topics include Boolean retrieval, vector space model, and Web search. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4318. Compiler Construction.
+
+This course investigates theoretical and practical issues in the design and construction of modern compilers. Topics covered include lexical and syntactic analysis, syntax-directed translation, type checking, intermediate representation, code generation, and runtime systems. A major portion of the course involves implementing a compiler from scratch for a C-like programming language. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4326. Human Factors of Computer Systems.
+
+Principles and methods in human factors and ergonomics applied to the design and use of computer systems. Prerequisite: CS 3358 with a grade of "C" or better. (WI).
+
+----------
+
+CS 4328. Operating Systems.
+
+This course covers the principles of operating systems design. The covered topics include: process management, CPU scheduling algorithms, inter-process communication and synchronization, memory management, virtual machines, and I/O device management. Prerequisite: CS 3339 and CS 3360 both with grades of "C" or better.
+
+----------
+
+CS 4332. Introduction to Database Systems.
+
+Introduction to database concepts, data models, file structures, query languages, database management systems. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4337. Introduction to Computer Vision.
+
+This course covers fundamental topics of computer vision. Topics include elementary image operations and transformations, template matching, feature extraction, object recognition, classification and tracking, deep learning, camera models and stereo vision, and image searching. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4346. Introduction to Artificial Intelligence.
+
+An introduction to the basic concepts of artificial intelligence; search techniques, knowledge representation, problem solving. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4347. Introduction to Machine Learning.
+
+This course provides systematic introduction to machine learning, covering basic theoretical as well as practical aspects of the use of machine learning methods. Topics include learning theory, learning methods, and recent learning models. Application examples include multimedia information retrieval, text recognition, and computer vision. Prerequisite: CS 3358 and MATH 3305 both with grades of "C" or better.
+
+----------
+
+CS 4350. Unix Systems Programming.
+
+Fundamentals of Unix operating systems, Unix file system and environment, C memory allocation, development tools, processes and signals, threads, device drivers, and programming for security. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4353. Introduction to Graphical User Interfaces.
+
+This course covers abstract and practical foundations of graphical user interface design, evaluation, and implementation. Students will learn the fundamentals of computer graphics and interactive computer/human interfaces. The course includes a survey of usability measures, the major GUI standards, and GUI tools. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4355. Algorithms and Analysis.
+
+This course covers classic algorithms in computer science and their applications. Emphasis is on algorithm design, algorithm analysis, problem formulation, and problem solving. Topics include advanced tree and graph algorithms, advanced sorting and searching algorithms, greedy algorithms, dynamic programming, string processing algorithms, and algorithm complexity (time and memory). Prerequisite: CS 3358 with grade of "C" or better.
+
+----------
+
+CS 4371. Computer System Security.
+
+Course covers practical aspects of computer system security including managing and producing code for secure systems. Theory, such as cryptography, is introduced as needed. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4372. Introduction to Digital Multimedia.
+
+The course covers concepts, problems and techniques in digital multimedia. Topics include digital representation and data compression of text, speech, audio, natural and synthetic images, and video, as well as multimedia applications, transmission, and standards. In addition, the course introduces perceptual aspects of multimedia signals and sources. Prerequisite: CS 3358 with a grade of "C" of better.
+
+----------
+
+CS 4379D. Distributed Ledger Systems and Blockchains: Theory and Applications.
+
+This course covers fundamental concepts underlying the design, implementation, research, and applications of Distributed Ledger Technology (DLT) systems (e.g., blockchains). It introduces implementations, applications, and performance evaluation of DLT systems. Topics include cryptographic encryption, security, anonymity, cryptographic data structures, DLT performance evaluation, DLT applications, and current DLT research. Prerequisite: CS 3358 with grade of "C" or better.
+
+----------
+
+CS 4379E. Introduction to Network Science.
+
+This course covers fundamental concepts and algorithms in the fields of social network analysis and network science as well as practical aspects of analyzing network-structured data. Topics include graph representations, network visualization, graph algorithms, random graph models, centrality measures, link analysis and ranking algorithms, and community detection and graph partitioning. Prerequisite: CS 3358 with a grade of "C" or better.
+
+----------
+
+CS 4379F. Distributed Data Processing.
+
+This course provides an introduction to the principles and practice of distributed data processing. Students will learn about distributed database architectures, with an emphasis on the Hadoop software stack and its ecosystem. The course will cover the fundamentals of distributed file systems, parallel processing with MapReduce, and data management using tools like Hive, Pig, and HBase. It will also explore modern distributed data processing frameworks such as Apache Spark. Practical hands-on experience will be gained through programming assignments and projects using Hadoop and its related tools. Prerequisite: CS3354 and CS 3358 both with a grade of "C" or better.
+
+----------
+
+CS 4379G. Data Analysis and Visualization.
+
+This course introduces data analysis and visualization for data science. It begins with foundational Python programming, ensuring that students develop the skills necessary to write code for data-related tasks. The course will then cover key data science concepts, including data wrangling, cleaning, exploratory data analysis, and unsupervised learning techniques such as clustering. Students will work with libraries such as NumPy and Pandas to manipulate data and perform analysis. The final phase focuses on data visualization techniques, and creating interactive dashboards to facilitate data interpretation for broad audiences. Prerequisite: CS 2308 with grade of "C" or better.
+
+----------
+
+CS 4379H. Cryptography.
+
+This course introduces the basic paradigm and principles of modern cryptography. The focus will be on definitions and constructions of various cryptographic algorithms. We will discuss which security properties are desirable, how to formally define security properties, and how to design and satisfy the properties. The aim is that at the end of this course, the students can understand a significant portion of current cryptography research papers and standards. Prerequisite: CS 3358 with grade of "C" or better.
+
+----------
+
+CS 4379K. Introduction to Autonomous Robotics.
+
+This course covers robot programming and the basic algorithms and AI techniques for robotics. Topics include motion control, state estimation and tracking with Kalman filters, localization with particle filters, computer vision, object detection, task and motion planning, deep reinforcement learning, multirobot systems, applications such as autonomous vehicles, and social implications of intelligent robots. Prerequisite: CS 3358 with grade of "C" or better.
+
+----------
+
+CS 4379Q. Introduction to Recommender Systems.
+
+This course covers the basic concepts of recommender systems, including personalization algorithms, evaluation tools, and user experiences. We will discuss how recommender systems are deployed in e-commerce sites, social networks, and many other online systems. Additionally, we will review current research in the field. Prerequisite: CS 3358 with a grade of "C" or better or instructor approval.
+
+----------
+
+CS 4379Y. Introduction to Green Computing.
+
+Reducing energy consumption of mobile devices, cloud computing platforms, and supercomputers is a paramount but daunting problem. This course covers fundamental concepts and techniques in green computing, including a hardware energy efficiency roadmap; energy efficient software design, resource management, and storage solutions; and green data centers and mobile computing. Prerequisites: CS 3339 and CS 3358 both with grades of "C" or better.
+
+----------
+
+CS 4380. Parallel Programming.
+
+This course teaches practical aspects of parallel programming. Topics include multi-core processors and shared-memory programming, hardware accelerator programming, and distributed-memory machines, and message-passing programming. Students will gain the knowledge and skills needed for developing parallel software by writing programs for a variety of parallel computers. Prerequisite: CS 3339 and CS 3360 both with grades of "C" or better.
+
+----------
+
+CS 4381. Practical Game Development.
+
+This course teaches practical aspects of computer game design and implementation. Topics include graphics game engines, game physics, AI methods applied to games, and software architectures for computer games. Students will gain knowledge and skills needed for game development via team projects. Prerequisite: CS 3398 with a grade of "C" or better.
+
+----------
+
+CS 4388. Computer Graphics.
+
+This course is a study of the hardware and software used in graphic representation and interpretation of data. Prerequisite: CS 3358 and [MATH 1317 or MATH 2321 or MATH 2417 or MATH 2471 or MATH 2472] both with grades of "C" or better.
+
+----------
+
+CS 4395. Independent Study in Computer Science.
+
+Open to undergraduate students on an independent basis by arrangement with the faculty member concerned. Prerequisite: Instructor approval.
+
+----------
+
+CS 4398. Software Engineering Project.
+
+Students undertake a software development project. They work in teams, developing requirements and designs which they will implement and test. Prerequisite: CS 3398 with a grade of "C" or better.
+
+----------
+
+CS 5306. Advanced Operating Systems.
+
+This course provides a study of modern operating systems, including network, distributed, and real-time systems.
+
+----------
+
+CS 5310. Network and Communication Systems.
+
+This course provides a study of network and communication systems. Students will be required to perform verification and implementation of protocols.
+
+----------
+
+CS 5315. Responsible and Trustworthy AI.
+
+This course explores the foundational principles and practices that define responsible and trustworthy Artificial Intelligence (AI), introducing AI Engineering and Engineering for Trustworthy AI with a focus on designing and deploying effective, ethical, and trustworthy systems. Students will examine critical concepts such as robustness, explainability, privacy, fairness, bias, and the responsible use of generative AI models and machine learning in production. Each module provides insights into the benefits and limitations of these concepts and their integration into AI development. The course also addresses recent advancements and ethical challenges within the AI domain. Prerequisite: CS 5369L with a grade of "C" or better.
