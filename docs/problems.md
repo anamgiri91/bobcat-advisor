@@ -1,10 +1,5 @@
 # Chunking Pipeline — Problems, Decisions & Solutions
 
-> **Project:** AI201 Project 1 — The Unofficial Guide to Texas State CS Professors  
-> **Pipeline stage:** Document ingestion, chunking, embedding, and retrieval  
-> **Author reference doc** — written after implementation to record every problem encountered, why it mattered, and exactly how it was fixed.
-
----
 
 ## Table of Contents
 
