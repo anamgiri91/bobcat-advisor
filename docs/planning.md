@@ -1,12 +1,3 @@
-# Project 1 Planning: The Unofficial Guide
-
-> Write this document before you write any pipeline code.
-> Your spec and architecture diagram are what you'll use to direct AI tools (Claude, Copilot, etc.) to generate your implementation — the more specific they are, the more useful the generated code will be.
-> Update the Retrieval Approach and Chunking Strategy sections if you change your approach during implementation.
-> Update this file before starting any stretch features.
-
----
-
 
 ## Domain
 
@@ -17,9 +8,6 @@ This domain is valuable because official resources like the course catalog expla
 ---
 
 ## Documents
-
-<!-- List your specific sources: URLs, subreddit names, forum threads, or file descriptions.
-     Aim for at least 10 sources that together cover different subtopics or perspectives within your domain. -->
 
 | # | Source | Description | URL or location |
 |---|--------|-------------|-----------------|
@@ -91,11 +79,6 @@ If cost and computational resources were not a constraint, I would consider larg
 ---
 
 ## Evaluation Plan
-
-<!-- List your 5 test questions with their expected correct answers.
-     Questions should be specific enough that you can judge whether the system's response
-     is right or wrong. "What are good dining halls?" is too vague.
-     "What do students say about wait times at [dining hall name] during lunch?" is testable. -->
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
@@ -171,59 +154,3 @@ flowchart TD
     class A,B,C,D,E stage;
 ```
 
-## AI Tool Plan
-
-<!-- For each part of the pipeline below, describe:
-     - Which AI tool you plan to use (Claude, Copilot, ChatGPT, etc.)
-     - What you'll give it as input (which sections of this planning.md, which requirements)
-     - What you expect it to produce
-     - How you'll verify the output matches your spec
-
-     "I'll use AI to help me code" is not a plan.
-     "I'll give Claude my Chunking Strategy section and ask it to implement chunk_text()
-     with my specified chunk size and overlap" is a plan. -->
-
-Milestone 3 — Ingestion and Chunking:
-
-I will use ChatGPT and GitHub Copilot to implement document ingestion and chunking. I will provide the Domain, Documents, Chunking Strategy, and Pipeline Diagram sections from this planning document as input. I will ask the AI to generate Python code that loads data from Rate My Professors, Reddit threads, Coursicle reviews, and official Texas State sources. The AI will also generate code that performs review-level chunking, where each review becomes a separate chunk with metadata such as professor name, course number, and source.
-
-I will verify the implementation by inspecting the generated chunks and ensuring that each review is stored as a separate chunk with the correct metadata. I will also test several documents manually to confirm that chunking follows the specification.
-
-Milestone 4 — Embedding and Retrieval:
-
-I will use Claude Code to implement embeddings, ChromaDB storage, and semantic retrieval because Claude Code is specifically designed for understanding and generating code across multiple files and workflows. I will provide Claude with the Retrieval Approach, Chunking Strategy, and Pipeline Diagram sections from this planning document.
-
-I will ask Claude to generate code that:
-
-Creates embeddings using all-MiniLM-L6-v2
-Stores embeddings in ChromaDB
-Preserves metadata for each chunk
-Converts user queries into embeddings
-Retrieves the top 5 most relevant chunks using cosine similarity
-
-I will verify the implementation by running the evaluation questions and checking whether the retrieved chunks contain information relevant to the user's query.
-
-Milestone 5 — Generation and Interface:
-
-I will use OpenAI Codex to implement the generation pipeline and user interface. I will provide the Retrieval Approach, Evaluation Plan, and Pipeline Diagram sections from this planning document. I will ask Codex to generate code that combines retrieved chunks with the user's question, sends the context to an LLM, and generates a final answer. I will also ask it to create a simple command-line interface that allows users to ask questions about Texas State Computer Science professors.
-
-I will verify the implementation by testing the five evaluation questions and comparing the generated responses against the expected answers. I will also inspect the retrieved context to ensure that the generated answers are grounded in the retrieved documents rather than unsupported claims.
-
-
----
-
-## Stretch Feature: Metadata Filtering
-
-**What it does:**
-Lets users filter retrieved chunks by source (RateMyProfessors, Coursicle, Reddit) and by course number directly from the Gradio UI. Instead of searching across all 478 chunks, the retrieval only searches chunks that match the selected filters.
-
-**Why this is useful:**
-A student who only wants to see RMP reviews — because they trust that source more — shouldn't have to read Coursicle results mixed in. Similarly, a student asking about CS2308 specifically shouldn't get reviews about the same professor teaching a different course.
-
-**How it works:**
-Each chunk already has `source` and `course` fields stored in ChromaDB metadata from ingestion. The Gradio UI will get a source dropdown (All / RateMyProfessors / Coursicle / Reddit) and a course number text box. These values get passed into `retrieve.py` and added to the existing `_build_combined_filter()` function as additional `$and` conditions on the ChromaDB query.
-
-**What I need to change:**
-- `app.py` — add source dropdown and course filter text box to the Gradio layout, pass values to `handle_question()`
-- `retrieve.py` — update `_build_combined_filter()` to accept an optional source filter and thread it through `retrieve()` and `retrieve_balanced()`
-- No changes needed to chunking, embedding, or generation
