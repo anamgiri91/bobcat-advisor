@@ -10,15 +10,23 @@ Run once before starting the app:
 Re-running is safe: ChromaDB upserts by chunk ID, so duplicates
 are overwritten rather than inserted twice.
 
+Embedding backend: fastembed (ONNX Runtime), not sentence-transformers
+(PyTorch). This must match retrieve.py's backend — ingesting with one
+library and querying with another can produce subtly different vectors
+for the same model name, which would quietly hurt retrieval quality.
+If you already have an existing ChromaDB built with sentence-transformers,
+delete data/chroma_db/ and re-run this script so all vectors come from
+the same fastembed backend.
+
 Dependencies:
-    pip install chromadb sentence-transformers
+    pip install chromadb fastembed
 """
 
 import json
 import argparse
 from pathlib import Path
 
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 import chromadb
 
 
@@ -47,7 +55,7 @@ def build_index(chunks_path: Path, db_path: Path) -> None:
     print(f"  Embedding {len(chunks)} chunks")
 
     print(f"\nLoading embedding model: {EMBED_MODEL} ...")
-    model = SentenceTransformer(EMBED_MODEL)
+    model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     print(f"\nConnecting to ChromaDB at {db_path} ...")
     db_path.mkdir(parents=True, exist_ok=True)
@@ -63,7 +71,11 @@ def build_index(chunks_path: Path, db_path: Path) -> None:
         full_texts = [c["text"]     for c in batch]
         ids        = [c["id"]       for c in batch]
         metas      = [c["metadata"] for c in batch]
-        embeddings = model.encode(full_texts, show_progress_bar=False).tolist()
+
+        # fastembed's .embed() returns a generator of numpy arrays, one per
+        # input text, in the same order as full_texts. Convert each to a
+        # plain list[float] since that's what ChromaDB's upsert expects.
+        embeddings = [vec.tolist() for vec in model.embed(full_texts)]
 
         collection.upsert(
             ids=ids,

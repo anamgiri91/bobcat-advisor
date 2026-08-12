@@ -75,8 +75,17 @@ Fix H — Chunk text is now body-only (see chunker.py Fix 1):
   time, so retrieve() returns clean body text and generate.py no longer
   needs to split on "\\n\\n" to find the body.
 
+Fix I — Embedding backend swapped to fastembed (ONNX Runtime) instead of
+  sentence-transformers (PyTorch). The deployed backend was getting OOM-killed
+  on Render's 512MB free tier the first time /api/chat/ask triggered model
+  load — the MiniLM weights themselves are small (~80MB), but importing
+  PyTorch alone typically costs 200-400MB resident memory. fastembed uses
+  ONNX Runtime, which has a much lighter footprint, while still running the
+  same all-MiniLM-L6-v2 model family. NOTE: embed.py (ingestion) must use the
+  same backend, or ingested vectors and query vectors could subtly diverge.
+
 Dependencies:
-    pip install chromadb sentence-transformers
+    pip install chromadb fastembed
 """
 
 from __future__ import annotations
@@ -86,7 +95,7 @@ from collections import defaultdict
 from typing import TypedDict
 
 import chromadb
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 
 # ---------------------------------------------------------------------------
@@ -193,21 +202,34 @@ PROF_CANONICAL: dict[str, str] = {
 # Module-level singletons
 # ---------------------------------------------------------------------------
 
-_model: SentenceTransformer | None = None
+_model: TextEmbedding | None = None
 
 # Cache collections by db_path so tests/apps using different DB folders do not
 # accidentally reuse the first collection loaded.
 _collections: dict[str, chromadb.Collection] = {}
 
 
-def _get_model() -> SentenceTransformer:
+def _get_model() -> TextEmbedding:
     """Load the embedding model once and reuse it across retrieval calls."""
     global _model
 
     if _model is None:
-        _model = SentenceTransformer(EMBED_MODEL)
+        _model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     return _model
+
+
+def _embed_text(text: str) -> list[float]:
+    """
+    Embed a single string and return a plain list[float], matching the shape
+    ChromaDB expects.
+
+    fastembed's .embed() takes an iterable and returns a generator of numpy
+    arrays (even for a single input), unlike sentence-transformers' .encode()
+    which returns a single array directly for a single string. This helper
+    normalizes that difference so call sites don't need to know about it.
+    """
+    return list(_get_model().embed([text]))[0].tolist()
 
 
 def _get_collection(db_path: str = "data/chroma_db") -> chromadb.Collection:
@@ -429,14 +451,13 @@ def retrieve(
     if not query.strip():
         return []
 
-    model = _get_model()
     collection = _get_collection(db_path)
 
     prof = _extract_professor(query)
     course_digits = _extract_course_number(query)
     where_filter = _build_combined_filter(prof, course_digits, source_filter)
 
-    query_embedding = model.encode(query).tolist()
+    query_embedding = _embed_text(query)
 
     query_kwargs: dict = {
         "query_embeddings": [query_embedding],
@@ -500,7 +521,7 @@ def _get_named_professor_chunks(
 
     # Use the professor name as the query so the most topically relevant
     # chunks for that professor surface first.
-    query_embedding = _get_model().encode(prof).tolist()
+    query_embedding = _embed_text(prof)
 
     try:
         results = collection.query(
@@ -659,7 +680,7 @@ def _get_catalog_chunk(
     try:
         results = collection.query(
             query_embeddings=[
-                _get_model().encode("official course catalog description").tolist()
+                _embed_text("official course catalog description")
             ],
             n_results=3,
             where={
