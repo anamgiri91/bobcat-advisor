@@ -39,6 +39,19 @@ Fix 2: _build_grouped_context() source_label now checks ALL chunks for a
        rmp and coursicle, the label correctly reads "RateMyProfessors +
        Coursicle" instead of whichever source happened to appear first.
 
+Fix 3: MODEL is now read from the GROQ_MODEL env var (defaulting to a
+       currently-live Groq model) instead of being hardcoded. The old
+       hardcoded value, "llama-3.3-70b-versatile", was deprecated/removed
+       from Groq's catalog and caused every request to 500 with
+       groq.NotFoundError. generate_answer() now also retries once against
+       GROQ_FALLBACK_MODEL if the primary model 404s, so a future Groq-side
+       deprecation degrades gracefully instead of taking down the endpoint.
+       >>> Before deploying, verify live model IDs with:
+       >>>   curl https://api.groq.com/openai/v1/models \\
+       >>>     -H "Authorization: Bearer $GROQ_API_KEY" | jq '.data[].id'
+       >>> and set GROQ_MODEL / GROQ_FALLBACK_MODEL accordingly (env vars,
+       >>> not code) so future deprecations don't require a redeploy.
+
 Setup:
     pip install groq python-dotenv
     Add GROQ_API_KEY=your_key to your .env file
@@ -61,9 +74,14 @@ load_dotenv()
 # Config
 # ---------------------------------------------------------------------------
 
-MODEL      = "llama-3.3-70b-versatile"
-MAX_TOKENS = 1024
-TOP_K      = 5
+# Fix 3: configurable via env var instead of hardcoded, so a Groq-side
+# deprecation can be fixed by changing an env var + restart, not a redeploy.
+# Confirm the current default is still live before relying on it —
+# https://console.groq.com/docs/models
+MODEL          = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+FALLBACK_MODEL = os.environ.get("GROQ_FALLBACK_MODEL", "llama-3.1-8b-instant")
+MAX_TOKENS     = 1024
+TOP_K          = 5
 
 NO_INFO_RESPONSE = (
     "I couldn't find enough information in the retrieved sources "
@@ -305,12 +323,16 @@ def generate_answer(
 ) -> str:
     """
     Call Groq with the retrieved context and return a grounded answer.
+
+    Fix 3: retries once against FALLBACK_MODEL if the primary MODEL comes
+    back as 404 (deprecated / not accessible to this key). This keeps a
+    single Groq-side model deprecation from taking down every request.
     """
     if not chunks:
         return NO_INFO_RESPONSE
 
     try:
-        from groq import Groq
+        from groq import Groq, NotFoundError
     except ImportError:
         raise ImportError("groq not installed — run: pip install groq")
 
@@ -339,14 +361,27 @@ Instructions:
   "I couldn't find enough information in the retrieved sources to answer that question."
 """
 
-    response = client.chat.completions.create(
-        model      = MODEL,
-        max_tokens = MAX_TOKENS,
-        messages   = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": user_message},
-        ],
-    )
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": user_message},
+    ]
+
+    try:
+        response = client.chat.completions.create(
+            model      = MODEL,
+            max_tokens = MAX_TOKENS,
+            messages   = messages,
+        )
+    except NotFoundError:
+        # Primary model is deprecated / not accessible to this API key.
+        # Retry once with the fallback before giving up.
+        if FALLBACK_MODEL == MODEL:
+            raise
+        response = client.chat.completions.create(
+            model      = FALLBACK_MODEL,
+            max_tokens = MAX_TOKENS,
+            messages   = messages,
+        )
 
     return response.choices[0].message.content.strip()
 
