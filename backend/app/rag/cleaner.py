@@ -11,7 +11,7 @@ Five cleaning passes, applied in order by clean_chunks():
   Pass 2  _pass_truncation_flag   Flag chunks that end mid-sentence
   Pass 3  _pass_short_flag        Flag chunks under 50 words
   Pass 4  _pass_fill_missing_date Fill missing date fields with "unknown"
-  Pass 5  _pass_normalise_course  Normalise "CS 3358" → "CS3358"
+  Pass 5  _pass_normalise_course  Normalise "CS 3358", "1428", "CS ASSEMBLY"… → "CS3358"
 
 CHANGES
 -------
@@ -32,7 +32,6 @@ No file I/O happens here. This module is purely in-memory transforms.
 """
 
 import re
-
 
 JUNK_SIGNALS = [
     "nvidia",
@@ -145,24 +144,74 @@ def _pass_fill_missing_date(chunks: list[dict], report: dict) -> list[dict]:
     return chunks
 
 
+# Free-text course names students typed into review sites, mapped to codes.
+COURSE_NAME_ALIASES = {
+    "ASSEMBLY": "CS2318",
+    "DATASTRUCTURES": "CS3358",
+}
+
+
+def normalise_course(raw: str) -> tuple[str, list[str]]:
+    """
+    Map a scraped course string to (primary_code, all_codes).
+
+      "CS 3358"      -> ("CS3358", ["CS3358"])
+      "1428"         -> ("CS1428", ["CS1428"])
+      "HONORSCS1428" -> ("CS1428", ["CS1428"])
+      "CS3358004"    -> ("CS3358", ["CS3358"])       section number dropped
+      "CS23183358"   -> ("CS2318", ["CS2318", "CS3358"])
+      "CS ASSEMBLY"  -> ("CS2318", ["CS2318"])
+      "MATH 2471"    -> ("MATH2471", ["MATH2471"])
+      "CS WHATEVER"  -> ("", [])                     unknowable, left blank
+
+    Anything unrecognised is returned unchanged so nothing is silently lost.
+    """
+    if not isinstance(raw, str):
+        return "", []
+    s = re.sub(r"[\s\-]+", "", raw.upper())
+    if s in ("", "UNKNOWN"):
+        return "", []
+
+    prefix_match = re.match(r"^(?:HONORS)?([A-Z]*?)(\d+)(\w*)$", s)
+    if prefix_match:
+        prefix = prefix_match.group(1) or "CS"
+        digits = prefix_match.group(2)
+        if prefix == "CS" and len(digits) >= 8 and len(digits) % 4 == 0:
+            codes = [f"CS{digits[i:i + 4]}" for i in range(0, len(digits), 4)]
+            return codes[0], codes
+        if len(digits) >= 4:
+            code = f"{prefix}{digits[:4]}"
+            return code, [code]
+        # "CS230", "CS53": truncated, can't be trusted
+        return "", []
+
+    name = s.removeprefix("CS")
+    if name in COURSE_NAME_ALIASES:
+        code = COURSE_NAME_ALIASES[name]
+        return code, [code]
+    if s.startswith("CS"):
+        return "", []
+    return raw, [raw]
+
+
 def _pass_normalise_course(chunks: list[dict], report: dict) -> list[dict]:
+    """
+    Normalise every course code to "CS3358" form. The original string is kept
+    in course_raw, and multi-course reviews list every code in `courses`
+    (pipe-delimited, because Chroma metadata values must be scalars).
+    """
     normalised = 0
-    pattern = re.compile(r"^CS\s+(\d+\w*)$", re.IGNORECASE)
 
     for chunk in chunks:
-        course = chunk["metadata"].get("course", "")
+        meta = chunk["metadata"]
+        raw = meta.get("course", "")
+        primary, codes = normalise_course(raw)
 
-        if not isinstance(course, str):
-            continue
-
-        m = pattern.match(course.strip())
-
-        if m:
-            normalised_code = f"CS{m.group(1)}"
-
-            if normalised_code != course:
-                chunk["metadata"]["course"] = normalised_code
-                normalised += 1
+        meta["course_raw"] = raw
+        meta["course"] = primary
+        meta["courses"] = "|".join(codes)
+        if primary != raw:
+            normalised += 1
 
     report["courses_normalised"] = normalised
 

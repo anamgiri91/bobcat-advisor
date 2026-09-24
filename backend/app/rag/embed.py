@@ -7,8 +7,8 @@ and stores the vectors in a persistent ChromaDB collection.
 Run once before starting the app:
     python embed.py --chunks data/chunks.jsonl --db data/chroma_db
 
-Re-running is safe: ChromaDB upserts by chunk ID, so duplicates
-are overwritten rather than inserted twice.
+Re-running is safe and incremental: chunk IDs are content hashes, so only
+new chunks are embedded and chunks removed from chunks.jsonl are deleted.
 
 Embedding backend: fastembed (ONNX Runtime), not sentence-transformers
 (PyTorch). This must match retrieve.py's backend — ingesting with one
@@ -22,13 +22,12 @@ Dependencies:
     pip install chromadb fastembed
 """
 
-import json
 import argparse
+import json
 from pathlib import Path
 
-from fastembed import TextEmbedding
 import chromadb
-
+from fastembed import TextEmbedding
 
 # ---------------------------------------------------------------------------
 # Config
@@ -48,11 +47,12 @@ def build_index(chunks_path: Path, db_path: Path) -> None:
     all_chunks = [json.loads(line) for line in chunks_path.open(encoding="utf-8")]
     print(f"  {len(all_chunks)} chunks loaded")
 
-    # Exclude short_review chunks from embedding (body < 50 words)
-    chunks = [c for c in all_chunks if not c["metadata"].get("short_review")]
-    skipped = len(all_chunks) - len(chunks)
-    print(f"  Skipping {skipped} short_review chunks (body < 50 words)")
-    print(f"  Embedding {len(chunks)} chunks")
+    # Short reviews (< 50 words) are indexed too. Whether retrieval uses them
+    # is a query-time policy (settings.INCLUDE_SHORT_REVIEWS), decided by the
+    # eval harness rather than baked into the index.
+    chunks = all_chunks
+    print(f"  Indexing {len(chunks)} chunks "
+          f"({sum(1 for c in chunks if c['metadata'].get('short_review'))} short reviews)")
 
     print(f"\nLoading embedding model: {EMBED_MODEL} ...")
     model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -65,9 +65,34 @@ def build_index(chunks_path: Path, db_path: Path) -> None:
         metadata={"hnsw:space": "cosine"},
     )
 
-    print(f"\nEmbedding and upserting in batches of {BATCH_SIZE} ...")
-    for i in range(0, len(chunks), BATCH_SIZE):
-        batch      = chunks[i : i + BATCH_SIZE]
+    # Incremental sync: chunk IDs are content hashes, so an unchanged chunk
+    # keeps its ID. Only embed IDs the index doesn't have yet, and delete IDs
+    # whose source text no longer exists. A full rebuild is never needed.
+    wanted_ids = {c["id"] for c in chunks}
+    existing = collection.get(include=["metadatas"])
+    existing_meta = dict(zip(existing["ids"], existing["metadatas"], strict=False))
+    stale_ids = sorted(set(existing_meta) - wanted_ids)
+    new_chunks = [c for c in chunks if c["id"] not in existing_meta]
+
+    # Same text but re-cleaned metadata (e.g. course normalisation changed):
+    # update metadata in place, no re-embedding needed.
+    meta_changed = [
+        c for c in chunks
+        if c["id"] in existing_meta and existing_meta[c["id"]] != c["metadata"]
+    ]
+
+    if stale_ids:
+        collection.delete(ids=stale_ids)
+    for i in range(0, len(meta_changed), BATCH_SIZE):
+        batch = meta_changed[i : i + BATCH_SIZE]
+        collection.update(ids=[c["id"] for c in batch],
+                          metadatas=[c["metadata"] for c in batch])
+    print(f"\n  {len(stale_ids)} stale deleted, {len(new_chunks)} new, "
+          f"{len(meta_changed)} metadata updated, "
+          f"{len(chunks) - len(new_chunks) - len(meta_changed)} unchanged")
+
+    for i in range(0, len(new_chunks), BATCH_SIZE):
+        batch      = new_chunks[i : i + BATCH_SIZE]
         full_texts = [c["text"]     for c in batch]
         ids        = [c["id"]       for c in batch]
         metas      = [c["metadata"] for c in batch]
@@ -84,12 +109,10 @@ def build_index(chunks_path: Path, db_path: Path) -> None:
             metadatas=metas,
         )
 
-        done = min(i + BATCH_SIZE, len(chunks))
-        print(f"  [{done:>4}/{len(chunks)}] upserted")
+        done = min(i + BATCH_SIZE, len(new_chunks))
+        print(f"  [{done:>4}/{len(new_chunks)}] upserted")
 
     print(f"\nDone. Collection '{COLLECTION_NAME}' has {collection.count()} documents.")
-    print(f"Note: {skipped} short_review chunks were excluded from the index.")
-    print("If rebuilding: delete data/chroma_db/ before re-running.")
 
 
 # ---------------------------------------------------------------------------

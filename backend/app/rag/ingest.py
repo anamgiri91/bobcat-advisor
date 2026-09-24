@@ -32,13 +32,12 @@ Usage
   python ingest.py --documents-dir documents --out chunks.jsonl --chroma
 """
 
-import json
 import argparse
+import json
 from pathlib import Path
 
-from .chunker import SUBDIR_STRATEGY, CHUNKER_MAP
+from .chunker import CHUNKER_MAP, SUBDIR_STRATEGY
 from .cleaner import clean_chunks
-
 
 # ---------------------------------------------------------------------------
 # Ingestion orchestrator

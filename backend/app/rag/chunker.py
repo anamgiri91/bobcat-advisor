@@ -48,9 +48,8 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Callable, Iterable
-
 
 # ingest.py imports these two names
 SUBDIR_STRATEGY: dict[str, str] = {
