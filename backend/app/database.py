@@ -18,7 +18,11 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .config import settings
 
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, future=True)
+# SQLite (used by the test suite) needs cross-thread access because the
+# streaming endpoint persists the turn from a worker thread.
+_connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, future=True,
+                       connect_args=_connect_args)
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
 

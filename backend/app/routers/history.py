@@ -65,6 +65,9 @@ def get_conversation(conversation_id: uuid.UUID, db: Session = Depends(get_db)):
             sources=m.sources,
             latency_ms=m.latency_ms,
             retrieved_chunk_count=m.retrieved_chunk_count,
+            intent=m.intent,
+            answer_mode=m.answer_mode,
+            verifier_pass_rate=m.verifier_pass_rate,
             created_at=m.created_at,
             helpful=feedback_by_message.get(m.id),
         )
