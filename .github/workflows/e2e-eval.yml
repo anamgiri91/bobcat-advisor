@@ -1,0 +1,36 @@
+name: E2E eval (LLM)
+
+# Runs the full agent pipeline against the golden set with a real model and
+# an LLM judge. Manual + weekly, not per-commit: it costs rate-limit budget
+# and LLM outputs aren't deterministic enough to hard-gate a PR on.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Stratified sample size (default 20)"
+        required: false
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      DATABASE_URL: sqlite:///./eval.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      # Stratified sample by default: a full run exceeds free-tier daily quotas.
+      - run: python -m evals.run_eval --suite e2e --sample ${{ inputs.limit || 20 }} --pause 6
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e2e-eval-results
+          path: backend/evals/results/

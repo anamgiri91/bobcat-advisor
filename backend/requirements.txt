@@ -5,21 +5,21 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 
-# Postgres (chat history / feedback / analytics)
+# Postgres (chat history / feedback / traces)
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 alembic==1.14.0
 
-# RAG pipeline
-# fastembed replaces sentence-transformers: same all-MiniLM-L6-v2 model,
-# but runs on ONNX Runtime instead of PyTorch, which avoids the ~200-400MB
-# memory cost of importing torch. This was causing OOM kills on Render's
-# 512MB instance the first time /api/chat/ask loaded the model.
-fastembed==0.4.2
+# Retrieval
+# fastembed runs all-MiniLM-L6-v2 (and the optional cross-encoder reranker)
+# on ONNX Runtime instead of PyTorch — PyTorch's import alone OOM-killed the
+# 512MB Render instance. 0.8 adds TextCrossEncoder.
+fastembed==0.8.0
 chromadb>=0.6.0
-groq==0.15.0
-scikit-learn>=1.3.0
 numpy>=1.26.0
+
+# LLM — Gemini or Groq via their OpenAI-compatible HTTP APIs (no vendor SDK)
+httpx==0.28.1
 
 # Environment variables
 python-dotenv==1.0.1

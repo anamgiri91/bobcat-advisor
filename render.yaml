@@ -31,7 +31,9 @@ services:
     healthCheckPath: /api/health
 
     envVars:
-      - key: GROQ_API_KEY
+      # LLM provider: Gemini (OpenAI-compatible API). Set GROQ_API_KEY
+      # instead (and LLM_PROVIDER=groq) to use Groq.
+      - key: GEMINI_API_KEY
         sync: false
 
       - key: DATABASE_URL
@@ -42,3 +44,16 @@ services:
 
       - key: CORS_ORIGINS
         sync: false
+
+      # Model IDs live in env vars so a provider deprecation is a config change.
+      # Check /api/health?deep=true after changing them.
+      - key: LLM_MODEL
+        value: gemini-3.6-flash
+      - key: LLM_FALLBACK_MODEL
+        value: gemini-3.5-flash-lite
+      - key: LLM_FAST_MODEL
+        value: gemini-3.6-flash
+
+      # The cross-encoder reranker adds ~100MB RSS; the free plan is 512MB.
+      - key: RERANKER_ENABLED
+        value: "false"
