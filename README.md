@@ -1,171 +1,202 @@
 # Bobcat Advisor
 
-A full-stack RAG application that answers questions about Texas State
-University CS professors — teaching style, exam difficulty, workload,
-grading — grounded in real RateMyProfessors, Coursicle, and Reddit reviews,
-plus the official course catalog.
+A multi-agent AI advisor for Texas State University CS students. Ask about
+professors and courses. It answers from ~700 real RateMyProfessors,
+Coursicle and Reddit reviews plus the official catalog, **computes**
+statistics and prerequisite eligibility instead of guessing them, cites every
+claim, and verifies its own answers before you see them.
 
-This started as a single-file Gradio demo. This version rebuilds it into a
-proper client/server application: a **React frontend**, a **FastAPI
-backend**, and a **Postgres** database for chat history and feedback,
-alongside the original ChromaDB retrieval pipeline.
+> "Seaman or Bhandari for CS2308?" · "Does Koh curve?" · "I've taken CS1428
+> and CS2308, what can I take next and with whom?" · "What are the prereqs
+> for CS3360?"
+
+## Highlights
+
+- **Multi-agent pipeline.** Router → parallel specialists (reviews, stats,
+  catalog, planner) → cited synthesis → claim verifier. Streamed live to the
+  UI so you can watch each agent work.
+- **Hybrid retrieval.** Dense (MiniLM, ONNX) + BM25, fused with RRF,
+  entity-aware filters with relaxation, and optional cross-encoder reranking.
+  Every setting was chosen with the eval harness.
+- **Grounded numbers.** "Mentioned in 11 of 139 reviews" comes from a stats
+  engine that de-duplicates cross-posted reviews, not from the LLM.
+- **Prerequisite graph.** The catalog is parsed into CNF prerequisites.
+  Eligibility and "what does this unlock" are set logic, never generated.
+- **Self-verification.** Every sentence is checked against the evidence it
+  cites; unsupported sentences are removed, and the pass rate is logged per answer.
+- **Evals in CI.** 90-case golden set plus a 25-case held-out set;
+  router, retrieval and tool metrics are gated against a baseline on every
+  push, and a weekly LLM-judged end-to-end run.
+- **Degrades gracefully.** No API key, an overloaded, rate-limited or
+  quota-exhausted model, a timeout mid-stream, or an exhausted budget: every
+  path still produces a cited answer. The provider failures were all hit live
+  during development, and every path is covered by tests.
+- **Production concerns.** Per-request traces in Postgres, per-agent latency
+  and token analytics, rate limiting, answer caching, prompt-injection and
+  PII guardrails, and a 512MB memory budget.
+- **MCP server.** The same tools, usable from Claude Desktop, Claude Code or any
+  MCP client.
 
 ## Architecture
 
 ```
-┌──────────────┐      REST (JSON)      ┌───────────────────┐
-│   React SPA   │  ───────────────────▶ │     FastAPI        │
-│  (Vite, Tailwind) │ ◀─────────────────  │  app/main.py        │
-└──────────────┘                       └─────────┬──────────┘
-                                                  │
-                        ┌─────────────────────────┼─────────────────────────┐
-                        │                         │                         │
-                 ┌──────▼──────┐          ┌────────▼────────┐        ┌───────▼───────┐
-                 │  Postgres    │          │   ChromaDB       │        │     Groq API    │
-                 │  chat history│          │   vector store    │        │  llama-3.3-70b   │
-                 │  + feedback  │          │  (unchanged RAG) │        │   generation      │
-                 └──────────────┘          └──────────────────┘        └─────────────────┘
+question ─► Guardrails ─► Router (LLM → rules fallback) ─► QueryPlan
+                                    │
+             ┌──────────────┬───────┴──────┬──────────────┐
+             ▼              ▼              ▼              ▼
+          Reviews         Stats         Catalog        Planner      (parallel,
+        hybrid RAG     exact counts   prereq graph   eligibility    no LLM)
+             └──────────────┴── evidence [1..n] ─────────┘
+                                    ▼
+                      Synthesizer (streamed, cites [n])
+                                    ▼
+                      Verifier (citations + claim check)
+                                    ▼
+                 answer + sources + trace ─► Postgres ─► analytics
 ```
 
-**Why two databases?** ChromaDB stores the document embeddings used for
-semantic search — that's the RAG index, and it doesn't change often.
-Postgres stores everything about *usage*: every question asked, every
-answer generated, latency, which source filter was applied, and user
-feedback (👍/👎) on individual answers. That split mirrors how most real
-RAG products are built — a specialized vector store for retrieval, a
-relational store for the application's own state — rather than jamming
-both into one system.
+| | |
+|---|---|
+| Frontend | React + Vite + Tailwind. Chat with live agent trace, clickable citations, verification badge; Professors (stats profiles) and Planner views |
+| API | FastAPI: JSON and SSE chat, history, feedback, analytics, knowledge endpoints |
+| LLM | Gemini (`gemini-3.6-flash`, fallback `gemini-3.5-flash-lite`) or Groq, through one OpenAI-compatible HTTP client with no vendor SDK. Models, reasoning effort and deadlines are env-configurable; `/api/health?deep=true` probes that the key can actually use them |
+| Retrieval | ChromaDB (persistence) + in-memory exact hybrid search |
+| Storage | Postgres: conversations, messages (with trace, intent, verifier pass rate), feedback |
 
-### Backend (`/backend`)
+Design decisions and trade-offs: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+Metrics and methodology: **[docs/EVALUATION.md](docs/EVALUATION.md)**.
 
-- **FastAPI** — REST API (`/api/chat/ask`, `/api/history`, `/api/feedback`)
-- **SQLAlchemy + Alembic** — Postgres models and versioned migrations for
-  `conversations`, `messages`, and `feedback`
-- **RAG pipeline** (`app/rag/`) — chunking, cleaning, embedding, retrieval,
-  and generation logic carried over from the original project:
-  - `chunker.py` / `cleaner.py` / `ingest.py` — parse and clean the raw
-    review corpus into chunks
-  - `embed.py` — embeds chunks with `all-MiniLM-L6-v2` into ChromaDB
-  - `retrieve.py` — semantic search with professor/course/source filters,
-    plus a balanced retrieval mode for comparison questions
-  - `generate.py` — grounded generation via Groq (`llama-3.3-70b-versatile`),
-    with programmatic (non-hallucinated) source attribution
+## Results
 
-### Frontend (`/frontend`)
+| | Original system | Now |
+|---|---|---|
+| Retrieval keyword MRR (production path) | 0.840 | **0.887** |
+| Retrieval keyword hit@8 | 0.975 | **1.000** |
+| Unfiltered entity precision@8 | 0.451 | **0.521** |
+| Router intent accuracy (held-out, rules only) | — (keyword heuristic) | **0.92** |
+| Prerequisite / planner correctness | not supported | **14/14** |
+| Follow-up questions ("does he curve?") | not supported | supported |
+| Answer verification | none | claim-level, logged per answer |
 
-- **React + Vite + Tailwind** — a chat interface with:
-  - Conversation history sidebar (persisted in Postgres, not local state)
-  - Source filter chips (RateMyProfessors / Coursicle / Reddit / Catalog)
-  - Per-answer source chips and retrieval stats (chunk count, latency)
-  - 👍/👎 feedback on individual answers
+End-to-end LLM metrics (faithfulness, citation coverage, refusal accuracy)
+are produced by `python -m evals.run_eval --suite e2e`. See
+[docs/EVALUATION.md](docs/EVALUATION.md) for status.
 
 ## Local setup
 
-**Requirements:** Docker + Docker Compose (simplest), or Python 3.11+ /
-Node 20+ if running services natively.
+**Requirements:** Docker + Docker Compose, or Python 3.11+ and Node 20+.
 
-### Option A — Docker Compose (recommended)
+### Option A: Docker Compose
 
 ```bash
-cp backend/.env.example backend/.env      # add your GROQ_API_KEY
+cp backend/.env.example backend/.env      # add your GEMINI_API_KEY (optional, see below)
 cp frontend/.env.example frontend/.env
-
 docker compose up --build -d
 ```
 
-A prebuilt ChromaDB index (`backend/data/chroma_db/`) and its source
-`chunks.jsonl` are included, so you can skip straight to asking questions.
-If you add new review documents to `backend/documents/` later, rebuild the
-index with:
-
-```bash
-docker compose exec backend bash scripts/build_index.sh
-```
-
 - Frontend: http://localhost:3000
-- Backend docs (Swagger): http://localhost:8000/docs
+- API docs (Swagger): http://localhost:8000/docs
 
-### Option B — Run natively
+The prebuilt index (`backend/data/`) is included. **No API key?** The app
+still works: routing falls back to rules, and answers are extractive (computed
+stats plus the most relevant quotes, still cited).
+
+### Option B: Run natively
 
 ```bash
-# 1. Postgres (or point DATABASE_URL at any Postgres instance you have)
+# Postgres
 docker run -d --name bobcat-pg -e POSTGRES_USER=bobcat -e POSTGRES_PASSWORD=bobcat \
   -e POSTGRES_DB=bobcat_advisor -p 5432:5432 postgres:16-alpine
 
-# 2. Backend
+# Backend
 cd backend
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # add your GROQ_API_KEY
-# data/chroma_db and data/chunks.jsonl are already included — run
-# scripts/build_index.sh only if you change the documents/ corpus
-alembic upgrade head           # create Postgres tables
+pip install -r requirements-dev.txt
+cp .env.example .env
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 
-# 3. Frontend (new terminal)
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
+# Frontend (new terminal)
+cd frontend && npm ci && cp .env.example .env && npm run dev
 ```
 
-### Running the retrieval test suite
+### Updating the corpus
 
-A regression test (`backend/tests/test_retrieval.py`) checks retrieval
-quality against five hand-labelled expected answers and writes a full
-report to `data/retrieval_report.txt`. Run it after touching the chunking,
-cleaning, embedding, or retrieval code:
+Add `.txt` files under `backend/documents/{rmp,coursicle,reddit,official}/`, then:
 
 ```bash
 cd backend
-python -m tests.test_retrieval
+bash scripts/build_index.sh              # incremental: only new/changed chunks are embedded
+ASPECTS=1 bash scripts/build_index.sh    # also LLM-tag review aspects (needs an LLM key)
 ```
 
-## Deployment
+New professors are picked up automatically: the entity registry is built
+from the data, not a hardcoded list.
 
-This mirrors the pattern from my [Provenance Guard](https://github.com/anamgiri91)
-deployment: **Render** for the backend + managed Postgres, and a static
-host (Render static site or Vercel) for the frontend.
+## Tests and evals
 
-1. **Postgres** — create a Render managed Postgres instance; copy its
-   connection string into the backend's `DATABASE_URL`.
-2. **Backend** — deploy `/backend` as a Render web service (Docker runtime,
-   `render.yaml` can be adapted from the original single-service one).
-   Set `GROQ_API_KEY`, `DATABASE_URL`, and `CORS_ORIGINS` (your frontend's
-   URL) as environment variables. Run `alembic upgrade head` and
-   `scripts/build_index.sh` once via a Render shell or a one-off job — the
-   ChromaDB index is baked into a persistent disk so it doesn't rebuild on
-   every deploy.
-3. **Frontend** — deploy `/frontend` as a static site; set
-   `VITE_API_BASE_URL` to the backend's public URL.
+```bash
+cd backend
+pytest -q                                   # 85 tests incl. the eval gate (no API key needed)
+python -m evals.run_eval                    # router + retrieval + tools report
+python -m evals.run_eval --suite retrieval --compare-configs
+python -m evals.run_eval --suite e2e        # full pipeline + LLM judge (needs key)
+ruff check app evals tests
+```
 
-## API reference
+Tests run against SQLite and a fake LLM backend, so the whole agent graph
+(including verifier revisions, model fallback and budget exhaustion) is
+covered offline.
 
-| Method | Path                          | Description                                  |
-|--------|-------------------------------|-----------------------------------------------|
-| POST   | `/api/chat/ask`               | Ask a question; returns answer + sources      |
-| GET    | `/api/history`                | List recent conversations                     |
-| GET    | `/api/history/{id}`           | Full transcript for one conversation           |
-| POST   | `/api/feedback`               | Submit 👍/👎 for an assistant message         |
-| GET    | `/api/health`                 | Health check                                   |
+## MCP server
 
-Full interactive docs at `/docs` (Swagger) once the backend is running.
+```bash
+cd backend
+python -m venv .venv-mcp && .venv-mcp/bin/pip install -r requirements-mcp.txt
+```
+
+Add to your MCP client config:
+
+```json
+{ "mcpServers": { "bobcat-advisor": {
+    "command": "/abs/path/backend/.venv-mcp/bin/python",
+    "args": ["/abs/path/backend/mcp_server.py"] } } }
+```
+
+Tools: `list_professors`, `search_reviews`, `professor_stats`,
+`compare_for_course`, `course_info`, `plan_next_courses`, `ask_advisor`.
+
+## API
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/chat/ask` | Ask; returns answer, citations, intent, mode, verifier pass rate |
+| POST | `/api/chat/ask/stream` | Same, as Server-Sent Events (`plan`, `agent`, `sources`, `token`, `verification`, `revision`, `done`) |
+| GET | `/api/history`, `/api/history/{id}` | Conversations and transcripts |
+| POST | `/api/feedback` | 👍/👎 on an answer |
+| GET | `/api/analytics` | Headline usage numbers |
+| GET | `/api/analytics/agents` | p50/p95 per agent span, tokens, verifier pass rate, feedback by intent |
+| GET | `/api/professors`, `/api/professors/{name}` | Stats profiles (fuzzy name matching) |
+| GET | `/api/courses`, `/api/courses/{code}` | Catalog, prerequisite tree, unlocks, professors |
+| GET | `/api/compare?professors=A&professors=B&course=CS2308` | Side-by-side stats |
+| POST | `/api/plan` | `{"completed": [...]}` → eligible courses |
+| GET | `/api/health` | Index readiness, LLM availability |
+
+## Deployment (Render)
+
+`render.yaml` deploys the backend as a Docker web service on the free plan.
+The index and embedding model are baked into the image, so there's no
+persistent disk and no model download on cold start. Set `GEMINI_API_KEY`,
+`DATABASE_URL` and `CORS_ORIGINS` in the service's environment; migrations
+run on boot (`scripts/start.sh`). Deploy `/frontend` as a static site with
+`VITE_API_BASE_URL` pointing at the backend.
+
+Memory: the API peaks around 340–390MB. The reranker adds about 100MB, so it's
+off on the 512MB free plan (`RERANKER_ENABLED`).
 
 ## Project history
 
-`/docs` carries over the original project's planning and debugging notes
-(`planning.md`, `problems.md`) and a retrieval-quality test report
-(`retrieval_report.txt`) — kept for reference on decisions made during the
-original single-file build.
-
-## What changed from the original project
-
-- Replaced the Gradio UI with a React SPA that talks to a real REST API
-- Added a FastAPI backend with routers, Pydantic schemas, and a clean
-  separation between the API layer and the RAG pipeline
-- Added Postgres (via SQLAlchemy + Alembic migrations) for chat history,
-  per-answer analytics (latency, retrieved chunk count), and user feedback
-- Containerized the whole stack with Docker Compose
-- Retrieval and generation logic (ChromaDB + sentence-transformers + Groq)
-  is unchanged — the improvements here are architectural, not to the RAG
-  quality itself
+The project began as a single-file Gradio RAG demo, then became a
+FastAPI + React + Postgres application, and is now a multi-agent system with
+evals. `docs/planning.md`, `docs/problems.md` and `docs/retrieval_report.txt`
+record the original build's decisions and debugging.
