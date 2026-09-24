@@ -8,7 +8,7 @@ __pycache__/
 venv/
 .venv/
 
-# Environment variables — never commit real secrets (GROQ_API_KEY, DATABASE_URL)
+# Environment variables — never commit real secrets (GEMINI_API_KEY, GROQ_API_KEY, DATABASE_URL)
 .env
 backend/.env
 frontend/.env
@@ -27,7 +27,7 @@ npm-debug.log*
 # backend/data/chunks.jsonl
 
 # Sentence-transformers model cache (re-downloaded at runtime, don't commit)
-backend/models/
+backend/.models/
 
 # Docker
 *.pid
@@ -39,3 +39,10 @@ backend/models/
 # OS
 .DS_Store
 Thumbs.db
+# Local artifacts
+.models/
+.fastembed/
+.pytest_cache/
+.ruff_cache/
+*.db
+backend/evals/results/
