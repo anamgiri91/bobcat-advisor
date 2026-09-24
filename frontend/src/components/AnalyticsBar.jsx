@@ -10,7 +10,7 @@ export default function AnalyticsBar() {
 
   if (!stats || stats.total_questions === 0) return null;
 
-  const { total_questions, avg_latency_ms, feedback } = stats;
+  const { total_questions, avg_latency_ms, feedback, verifier_pass_rate } = stats;
   const totalVotes = feedback.helpful + feedback.not_helpful;
   const helpfulPct = totalVotes > 0 ? Math.round((feedback.helpful / totalVotes) * 100) : null;
 
@@ -19,6 +19,9 @@ export default function AnalyticsBar() {
       <span>{total_questions} questions answered</span>
       {avg_latency_ms != null && <span>· avg {avg_latency_ms}ms</span>}
       {helpfulPct != null && <span>· {helpfulPct}% rated helpful</span>}
+      {verifier_pass_rate != null && (
+        <span>· {Math.round(verifier_pass_rate * 100)}% of claims verified</span>
+      )}
     </div>
   );
 }

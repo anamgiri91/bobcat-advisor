@@ -16,10 +16,16 @@ const LOGO_SVG = `
   <path d="M24.5 29 Q26 31 27.5 29 Q26 28 24.5 29 Z" fill="#c9a227"/>
 </svg>`;
 
-export default function Header() {
+const TABS = [
+  { id: "chat", label: "Ask" },
+  { id: "professors", label: "Professors" },
+  { id: "planner", label: "Planner" },
+];
+
+export default function Header({ tab, onTab }) {
   return (
     <header className="bg-gradient-to-br from-maroon via-maroon-light to-[#8b3a7e]">
-      <div className="px-6 py-4 flex items-center gap-3">
+      <div className="px-4 md:px-6 py-4 flex flex-wrap items-center gap-3">
         <span dangerouslySetInnerHTML={{ __html: LOGO_SVG }} />
         <div>
           <h1 className="font-display font-extrabold text-xl text-white leading-tight">
@@ -29,6 +35,20 @@ export default function Header() {
             TXST CS professor Q&A, grounded in real student reviews
           </p>
         </div>
+        <nav className="ml-auto flex gap-1" aria-label="Views">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => onTab(t.id)}
+              aria-current={tab === t.id ? "page" : undefined}
+              className={`font-display text-xs font-bold uppercase tracking-wide px-3 py-2 rounded-lg transition-colors ${
+                tab === t.id ? "bg-white text-maroon" : "text-white/80 hover:bg-white/10"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </div>
       <AnalyticsBar />
     </header>
