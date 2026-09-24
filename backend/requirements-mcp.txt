@@ -1,0 +1,8 @@
+# MCP server (mcp_server.py) — install in its own venv; the mcp SDK needs a
+# newer Starlette than the API pins.
+mcp>=1.2,<2
+fastembed==0.8.0
+chromadb>=0.6.0
+numpy>=1.26.0
+httpx==0.28.1
+python-dotenv==1.0.1
