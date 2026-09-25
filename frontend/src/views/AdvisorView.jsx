@@ -29,7 +29,7 @@ const toMin = (hhmm) => {
   return h * 60 + m;
 };
 
-function WeekGrid({ option }) {
+export function WeekGrid({ option }) {
   const blocks = [];
   option.sections.forEach((s, i) =>
     s.meetings.forEach((m) => m.days.split("").forEach((d) => blocks.push({ s, m, d, color: COLORS[i % COLORS.length] })))
@@ -74,7 +74,7 @@ function WeekGrid({ option }) {
   );
 }
 
-function Timetable({ timetable, prefs }) {
+export function Timetable({ timetable, prefs }) {
   const [idx, setIdx] = useState(0);
   const option = timetable.options[idx];
   return (
@@ -135,14 +135,14 @@ const SCENARIO_LABELS = {
   change_load: "Change hours per term",
 };
 
-function describeScenario(s) {
+export function describeScenario(s) {
   if (s.type === "switch_major") return `Switch to ${s.major} (${s.degree})`;
   if (s.type === "add_minor") return `Add a ${s.minor} minor`;
   if (s.type === "fail_course") return `Fail ${s.course}`;
   return `${s.target_credits} hours per term`;
 }
 
-function WhatIf({ body, courses }) {
+export function WhatIf({ body, courses }) {
   const [draft, setDraft] = useState({ type: "add_minor", major: "", degree: "BS", minor: "", course: "", target_credits: 12 });
   const [scenarios, setScenarios] = useState([]);
   const [result, setResult] = useState(null);

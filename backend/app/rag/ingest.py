@@ -13,14 +13,13 @@ Pipeline steps:
   4. Normalise metadata                              (cleaner.py)
   5. Append the knowledge-base chunks (data/kb_chunks.jsonl, built by
      `python -m app.kb.build`) — already sectioned, scrubbed and tagged
-  6. Save to JSONL and/or upsert into ChromaDB
+  6. Save to JSONL (embed.py then syncs the vector index incrementally)
 
 Usage
 -----
   python ingest.py --documents-dir documents
   python ingest.py --documents-dir documents --preview 5
   python ingest.py --documents-dir documents --out output/chunks.jsonl
-  python ingest.py --documents-dir documents --out chunks.jsonl --chroma
 """
 
 import argparse
@@ -115,37 +114,6 @@ def save_jsonl(chunks: list[dict], out_path: Path) -> None:
     print(f"\nSaved → {out_path}  ({len(chunks)} chunks)")
 
 
-def ingest_to_chroma(chunks: list[dict],
-                     collection_name: str = "txstate_cs_catalog",
-                     persist_dir: str = "./chroma_db") -> None:
-    """
-    Embed and upsert all chunks into a local ChromaDB collection.
-    `upsert` is idempotent: running twice won't create duplicates.
-
-    Requires:  pip install chromadb
-    """
-    try:
-        import chromadb
-    except ImportError:
-        print("chromadb not installed — run: pip install chromadb")
-        return
-
-    client     = chromadb.PersistentClient(path=persist_dir)
-    collection = client.get_or_create_collection(name=collection_name)
-
-    batch_size = 100
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i: i + batch_size]
-        collection.upsert(
-            ids       = [c["id"]       for c in batch],
-            documents = [c["text"]     for c in batch],
-            metadatas = [c["metadata"] for c in batch],
-        )
-        print(f"  Upserted {min(i + batch_size, len(chunks))}/{len(chunks)}")
-
-    print(f"Collection '{collection_name}' → {collection.count()} total documents")
-
-
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -159,7 +127,6 @@ Examples:
   python ingest.py --documents-dir documents
   python ingest.py --documents-dir documents --preview 5
   python ingest.py --documents-dir documents --out output/chunks.jsonl
-  python ingest.py --documents-dir documents --out chunks.jsonl --chroma
         """,
     )
     parser.add_argument(
@@ -169,14 +136,6 @@ Examples:
     parser.add_argument(
         "--out", default="chunks.jsonl",
         help="Output JSONL path (default: chunks.jsonl)",
-    )
-    parser.add_argument(
-        "--chroma", action="store_true",
-        help="Also upsert chunks into a local ChromaDB instance",
-    )
-    parser.add_argument(
-        "--chroma-dir", default="./chroma_db",
-        help="ChromaDB persistence directory (default: ./chroma_db)",
     )
     parser.add_argument(
         "--kb", default="data/kb_chunks.jsonl",
@@ -202,6 +161,3 @@ Examples:
         raise SystemExit(0)
 
     save_jsonl(all_chunks, Path(args.out))
-
-    if args.chroma:
-        ingest_to_chroma(all_chunks, persist_dir=args.chroma_dir)
