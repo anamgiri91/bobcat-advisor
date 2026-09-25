@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from evals.run_eval import eval_retrieval, eval_router, eval_tools, load_cases
+from evals.run_eval import eval_kb_retrieval, eval_retrieval, eval_router, eval_tools, load_cases
 
 EVALS = Path(__file__).resolve().parent.parent / "evals"
 BASELINE = json.loads((EVALS / "baseline.json").read_text())
@@ -47,3 +47,11 @@ def test_retrieval_bm25(golden):
 
 def test_retrieval_hybrid(golden):
     _check(eval_retrieval(golden), BASELINE["retrieval_hybrid"])
+
+
+def test_kb_retrieval(golden):
+    """Knowledge-base sources: right source kind retrieved. Runs once crawled."""
+    res = eval_kb_retrieval(golden)
+    if res["n"] == 0:
+        pytest.skip("knowledge base not crawled yet (python -m app.kb.build)")
+    _check(res, BASELINE["kb"])

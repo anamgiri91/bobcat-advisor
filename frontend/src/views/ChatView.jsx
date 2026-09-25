@@ -8,7 +8,7 @@ const EXAMPLE_QUESTIONS = [
   "Which course covers compilers?",
   "Should I take CS3358 or CS3360 first?",
   "I've taken CS1428 and CS2308. What can I take next?",
-  "What are the prerequisites for CS3360?",
+  "What's the last day to drop a class?",
 ];
 
 export default function ChatView({ pendingQuestion, onPendingHandled }) {

@@ -14,6 +14,9 @@ Two implementations with one contract:
 The LLM never gets the final word on entities: every course it returns is
 validated against the catalog-derived registry.
 
+Rule and procedure questions ("last day to drop?", "can I retake CS2308?")
+get the "policy" intent and are answered from the knowledge base (app/kb).
+
 Questions about a specific instructor ("is Dr. X a hard grader?", "who's
 the best professor for CS3358?") get the "instructor" intent, which runs no
 agents and returns a fixed reply: the app deliberately doesn't share
@@ -64,6 +67,26 @@ _PREREQ = re.compile(
     r"required for|unlock\w*|chain|right after|before taking|do i need)\b",
     re.IGNORECASE,
 )
+# Academic rules, procedures, deadlines and programs: answered from the
+# knowledge base (app/kb), not the course catalog.
+_POLICY = re.compile(
+    r"\b(drop(ping|ped)?|withdraw\w*|w grade|retake|re-take|repeat(ing)? (a|the|this)? ?(course|class)|"
+    r"repeat \w*\d{4}|replace (a|my|the) (grade|d|f)|grade replacement|pass/fail|pass-fail|"
+    r"credit/no credit|incomplete grade|gpa|probation|suspension|academic standing|good standing|"
+    r"full[- ]time|part[- ]time|course load|overload|max(imum)? (hours|credits)|how many hours|"
+    r"graduat\w*|degree audit|apply to graduate|transfer (credit|courses?)|ap credit|"
+    r"advanced placement|credit by exam|clep|dual credit|core curriculum|core requirement|"
+    r"(communication|math|science|humanities|social|creative arts) core|general education|"
+    r"regist(er|ration)|waitlist|wait list|closed class|full class|class is full|add a class|"
+    r"deadline|last day|academic calendar|finals? week|final exam schedule|census date|"
+    r"honou?r code|academic (integrity|honesty|dishonesty)|plagiari\w*|cheating|"
+    r"(ai|chatgpt|generative ai) (on|for|in) (assignments?|homework|exams?|projects?)|"
+    r"use (ai|chatgpt)|undergraduate research|research (opportunit\w*|lab)|internships?|co-?op|"
+    r"honors (college|program|thesis)|bs/ms|b\.s\./m\.s\.|accelerated|fast[- ]track|"
+    r"combined (degree|program)|5000[- ]level|graduate (course|class)(es)? as an undergrad\w*|"
+    r"minor in|change (my )?major|advis(or|ing) (appointment|hold)|registration hold)\b",
+    re.IGNORECASE,
+)
 _FOLLOW_UP = re.compile(r"\b(it|its|that class|this class|that course|this course|the class|"
                         r"the course|that one|this one)\b", re.IGNORECASE)
 
@@ -104,6 +127,10 @@ def route_rules(question: str, history: list[dict] | None = None) -> QueryPlan:
         intent = "off_topic"
     elif _INSTRUCTOR.search(question):
         intent = "instructor"
+    elif _PLAN.search(question) and _COMPLETION_VERBS.search(question):
+        intent = "plan"      # "I've taken X, what next?" even if it mentions graduation
+    elif _POLICY.search(question):
+        intent = "policy"
     elif _PLAN.search(question):
         intent = "plan"
     elif _PREREQ.search(question):
@@ -137,10 +164,15 @@ foundations I=CS1428, foundations II=CS2308, operating systems=CS4328, software 
 computer architecture=CS3339, object oriented=CS3354.
 
 Intents:
-- course_info: what a course covers, its level or credit hours, which course teaches a topic
+- course_info: what a course covers (including its syllabus: textbook, weekly topics, projects,
+  grading scheme), its level or credit hours, which course teaches a topic
 - compare: choosing between two or more courses
 - prereq: prerequisites, what a course unlocks, whether one can take X after Y
 - plan: the student lists courses they've completed and asks what to take next
+- policy: academic rules and procedures (dropping/withdrawing, repeating a course, pass/fail,
+  course load, GPA and academic standing, graduation, transfer/AP credit, core curriculum,
+  registration, deadlines and dates, honor code and AI use), and department programs
+  (undergraduate research, internships, honors, the BS/MS track, taking graduate courses)
 - instructor: anything about a specific professor/instructor/teacher (opinions, grading,
   who is best, who teaches a course, comparisons between instructors)
 - off_topic: anything unrelated to TXST CS courses (including greetings)

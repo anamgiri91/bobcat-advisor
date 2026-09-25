@@ -16,3 +16,10 @@
 {"id": "ho1", "category": "off_topic", "question": "What's the weather tomorrow?", "expect": {"intent": "off_topic", "courses": [], "must_refuse": true}}
 {"id": "ho2", "category": "off_topic", "question": "hello", "expect": {"intent": "off_topic", "courses": [], "must_refuse": false}}
 {"id": "hh1", "category": "followup", "question": "is it an upper division course?", "expect": {"intent": "course_info", "courses": ["CS4332"]}, "history": [{"role": "user", "content": "What is CS4332?"}, {"role": "assistant", "content": "CS4332 Introduction to Database Systems covers data models and query languages."}]}
+{"id": "hr1", "category": "policy", "question": "If I fail a class and take it again, which grade counts?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy"]}}
+{"id": "hr2", "category": "policy", "question": "What's the maximum number of hours I can register for?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy", "registrar"]}}
+{"id": "hr3", "category": "policy", "question": "Do dual credit classes transfer?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy"]}}
+{"id": "hg1", "category": "registrar", "question": "When do spring classes start?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["registrar"]}}
+{"id": "hd1", "category": "department", "question": "How do I join a research lab in computer science?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["department"]}}
+{"id": "he1", "category": "handbook", "question": "Is ChatGPT allowed for homework?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["handbook", "syllabus"]}}
+{"id": "hy1", "category": "syllabus", "question": "How is CS4371 graded?", "expect": {"intent": "course_info", "courses": ["CS4371"], "retrieve_kind": ["syllabus"]}}

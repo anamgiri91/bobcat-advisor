@@ -11,7 +11,9 @@ Pipeline steps:
   2. Route each subdirectory to its chunker          (chunker.py)
   3. Drop byte-identical duplicates (content-hash ids)
   4. Normalise metadata                              (cleaner.py)
-  5. Save to JSONL and/or upsert into ChromaDB
+  5. Append the knowledge-base chunks (data/kb_chunks.jsonl, built by
+     `python -m app.kb.build`) — already sectioned, scrubbed and tagged
+  6. Save to JSONL and/or upsert into ChromaDB
 
 Usage
 -----
@@ -177,12 +179,22 @@ Examples:
         help="ChromaDB persistence directory (default: ./chroma_db)",
     )
     parser.add_argument(
+        "--kb", default="data/kb_chunks.jsonl",
+        help="Knowledge-base chunks to include if the file exists (default: data/kb_chunks.jsonl)",
+    )
+    parser.add_argument(
         "--preview", type=int, default=0, metavar="N",
         help="Print N sample chunks to stdout and exit without saving",
     )
     args = parser.parse_args()
 
     all_chunks = ingest_all(Path(args.documents_dir))
+    kb_path = Path(args.kb)
+    if kb_path.exists():
+        kb = [json.loads(line) for line in kb_path.open(encoding="utf-8") if line.strip()]
+        known = {c["id"] for c in all_chunks}
+        all_chunks += [c for c in kb if c["id"] not in known]
+        print(f"Knowledge base: +{len(kb)} chunks from {kb_path}")
 
     if args.preview:
         for chunk in all_chunks[: args.preview]:

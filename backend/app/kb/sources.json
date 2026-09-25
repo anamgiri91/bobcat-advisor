@@ -1,0 +1,92 @@
+{
+  "_comment": "Knowledge-base sources. The crawler starts at `seeds`, stays on each seed's host (and the global TXST allowlist), and only follows links whose URL or anchor text contains one of `follow`. Seeds are starting points, not assumed page locations: pages are found by following links, so a moved page is still discovered. Check `python -m app.kb.build --report` after the first crawl and adjust.",
+  "sources": [
+    {
+      "id": "catalog_policy",
+      "kind": "policy",
+      "name": "TXST Undergraduate Catalog",
+      "seeds": ["https://mycatalog.txstate.edu/undergraduate/"],
+      "follow": ["polic", "regulation", "academic-standing", "probation", "suspension", "grading",
+                 "grade", "pass-fail", "credit-no-credit", "withdraw", "drop", "repeat", "course-load",
+                 "transfer", "credit-by-exam", "advanced-placement", "graduation", "degree-requirements",
+                 "general-information", "academic-information"],
+      "max_pages": 40,
+      "max_depth": 2,
+      "refresh_days": 30,
+      "catalog_year": true
+    },
+    {
+      "id": "core_curriculum",
+      "kind": "core",
+      "name": "TXST Core Curriculum",
+      "seeds": ["https://mycatalog.txstate.edu/undergraduate/"],
+      "follow": ["core-curriculum", "general-education", "core curriculum"],
+      "max_pages": 10,
+      "max_depth": 2,
+      "refresh_days": 30,
+      "catalog_year": true
+    },
+    {
+      "id": "grad_catalog",
+      "kind": "grad_catalog",
+      "name": "TXST Graduate Catalog",
+      "seeds": ["https://mycatalog.txstate.edu/graduate/"],
+      "follow": ["undergraduate", "senior", "enroll", "accelerated", "admission", "computer-science",
+                 "polic", "regulation"],
+      "max_pages": 15,
+      "max_depth": 2,
+      "refresh_days": 30,
+      "catalog_year": true
+    },
+    {
+      "id": "cs_department",
+      "kind": "department",
+      "name": "TXST Department of Computer Science",
+      "seeds": ["https://www.cs.txstate.edu/"],
+      "follow": ["advising", "undergraduate", "research", "internship", "co-op", "coop", "honors",
+                 "accelerated", "bs-ms", "combined", "program", "degree", "faq", "student",
+                 "concentration", "track", "minor"],
+      "max_pages": 30,
+      "max_depth": 2,
+      "refresh_days": 14,
+      "catalog_year": false
+    },
+    {
+      "id": "registrar",
+      "kind": "registrar",
+      "name": "TXST Registrar",
+      "seeds": ["https://www.registrar.txstate.edu/"],
+      "follow": ["calendar", "registration", "register", "deadline", "drop", "withdraw", "waitlist",
+                 "closed", "enroll", "add-drop", "dates", "final-exam"],
+      "max_pages": 25,
+      "max_depth": 2,
+      "refresh_days": 7,
+      "catalog_year": false
+    },
+    {
+      "id": "student_handbook",
+      "kind": "handbook",
+      "name": "TXST Dean of Students",
+      "seeds": ["https://www.dos.txstate.edu/", "https://policies.txst.edu/"],
+      "follow": ["handbook", "honor", "academic-integrity", "academic-honesty", "conduct",
+                 "07-10-01", "artificial-intelligence", "generative"],
+      "max_pages": 20,
+      "max_depth": 2,
+      "refresh_days": 30,
+      "catalog_year": false
+    },
+    {
+      "id": "syllabi",
+      "kind": "syllabus",
+      "name": "TXST public course syllabi (HB 2504)",
+      "seeds": ["https://hb2504.txst.edu/", "https://hb2504.txstate.edu/"],
+      "follow": ["syllab", "course", "computer-science", "cs-", "/cs/", "subject=cs", ".pdf"],
+      "max_pages": 60,
+      "max_depth": 3,
+      "refresh_days": 30,
+      "catalog_year": false,
+      "scrub_people": true,
+      "only_courses_with_prefix": "CS"
+    }
+  ]
+}

@@ -44,6 +44,7 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 from app.advising.pipeline import advise  # noqa: E402
 from app.agents.orchestrator import answer  # noqa: E402
 from app.agents.specialists import source_label  # noqa: E402
+from app.kb.sources import KB_KINDS  # noqa: E402
 from app.knowledge import catalog as cat  # noqa: E402
 from app.knowledge.corpus import registry  # noqa: E402
 from app.rag.index import SearchFilters, get_index  # noqa: E402
@@ -66,6 +67,17 @@ def search_catalog(query: str, k: int = 6) -> list[dict]:
     return [{"source": source_label(r["metadata"]), "text": r["text"]}
             for r in get_index().search(query, k=min(k, 15),
                                         filters=SearchFilters(chunk_types=["catalog"]))]
+
+
+@mcp.tool()
+def search_knowledge_base(query: str, kind: str | None = None, k: int = 6) -> list[dict]:
+    """Search official TXST pages: academic rules (kind "policy"), "core" curriculum,
+    "grad_catalog", CS "department" pages, "registrar" procedures and calendar,
+    student "handbook", or course "syllabus" text (instructor details removed).
+    Each result carries its URL, section and catalog year or fetch date."""
+    kinds = [kind] if kind else list(KB_KINDS)
+    return [{"source": source_label(r["metadata"]), "url": r["metadata"].get("url"), "text": r["text"]}
+            for r in get_index().search(query, k=min(k, 15), filters=SearchFilters(chunk_types=kinds))]
 
 
 @mcp.tool()

@@ -120,6 +120,8 @@ class Settings:
     # Retrieval policy (tuned with evals/run_eval.py — see docs/EVALUATION.md)
     DEFAULT_TOP_K: int = int(os.environ.get("DEFAULT_TOP_K", "8"))
     RERANKER_ENABLED: bool = _bool("RERANKER_ENABLED", False)
+    # "hybrid" (default), "bm25" (keyword only: no embedding model needed) or "dense".
+    RETRIEVAL_MODE: str = os.environ.get("RETRIEVAL_MODE", "hybrid")
 
     # Agent pipeline
     VERIFIER_ENABLED: bool = _bool("VERIFIER_ENABLED", True)
@@ -139,6 +141,10 @@ class Settings:
     WEB_MAX_BYTES: int = int(os.environ.get("WEB_MAX_BYTES", "3000000"))
     # The catalog changes once a year; pages are cached across requests.
     WEB_CACHE_TTL_S: float = float(os.environ.get("WEB_CACHE_TTL_S", "21600"))
+
+    # Knowledge base (app/kb): chunks fetched longer ago than this are not
+    # used to answer, so a stale deadline or rule can't be quoted as current.
+    KB_MAX_AGE_DAYS: int = int(os.environ.get("KB_MAX_AGE_DAYS", "400"))
 
     # Abuse protection
     RATE_LIMIT_PER_MINUTE: int = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "20"))

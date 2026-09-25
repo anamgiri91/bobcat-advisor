@@ -7,6 +7,14 @@ const KIND_LABELS = {
   plan: "planner",
   prereq: "prereqs",
   catalog: "catalog",
+  dates: "calendar",
+  policy: "catalog rules",
+  core: "core curriculum",
+  grad_catalog: "graduate catalog",
+  department: "CS department",
+  registrar: "registrar",
+  handbook: "handbook",
+  syllabus: "syllabus",
 };
 
 function VerificationBadge({ verification, mode }) {
@@ -79,6 +87,16 @@ export default function MessageBubble({ message }) {
               [{active.n}] {active.label}
             </p>
             <p className="text-sm text-ink/80 whitespace-pre-wrap">{active.snippet}</p>
+            {active.url && (
+              <a
+                href={active.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block mt-2 text-xs font-mono text-maroon hover:underline break-all"
+              >
+                Official page ↗ {active.url.replace(/^https:\/\//, "")}
+              </a>
+            )}
           </div>
         )}
 

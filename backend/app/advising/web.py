@@ -223,6 +223,20 @@ class _Parser(HTMLParser):
             self._block_parts.append(s if s != "\n" else " ")
 
 
+def pdf_text(data: bytes | str, max_pages: int = 40) -> str:
+    """Plain text of a PDF (syllabi are often PDFs). Empty string if unreadable."""
+    if isinstance(data, str):
+        return data
+    try:
+        from io import BytesIO
+
+        from pypdf import PdfReader
+        reader = PdfReader(BytesIO(data))
+        return "\n".join((p.extract_text() or "") for p in reader.pages[:max_pages]).strip()
+    except Exception:
+        return ""
+
+
 def parse_html(html: str, base_url: str = "") -> ParsedPage:
     p = _Parser(base_url)
     try:
@@ -246,6 +260,12 @@ class Page:
     status: int
     parsed: ParsedPage
     fetched_at: float
+    raw: str = ""                     # HTML source, or extracted PDF text
+    content_type: str = "text/html"
+
+    @property
+    def is_pdf(self) -> bool:
+        return "pdf" in self.content_type
 
     @property
     def text(self) -> str:
@@ -257,8 +277,8 @@ class Page:
 
 
 class Fetcher(Protocol):
-    def get(self, url: str, timeout_s: float) -> tuple[int, dict[str, str], str]:
-        """(status, lower-cased headers, body). Must NOT follow redirects."""
+    def get(self, url: str, timeout_s: float) -> tuple[int, dict[str, str], str | bytes]:
+        """(status, lower-cased headers, body: str, or bytes for PDFs). Must NOT follow redirects."""
         ...
 
 
@@ -279,6 +299,8 @@ class HttpxFetcher:
                     if len(body) > settings.WEB_MAX_BYTES:
                         raise FetchError(f"page larger than {settings.WEB_MAX_BYTES} bytes")
                 headers = {k.lower(): v for k, v in resp.headers.items()}
+                if "pdf" in headers.get("content-type", ""):
+                    return resp.status_code, headers, body     # bytes; see pdf_text()
                 return resp.status_code, headers, body.decode(resp.encoding or "utf-8", "replace")
         except httpx.HTTPError as e:
             raise FetchError(f"{type(e).__name__}: {e}") from e
@@ -414,20 +436,28 @@ class Browser:
                 if status >= 400:
                     raise FetchError(f"HTTP {status}")
                 ctype = headers.get("content-type", "text/html")
-                if "html" not in ctype and "text" not in ctype:
-                    raise FetchError(f"not an HTML page ({ctype})")
+                if "html" not in ctype and "text" not in ctype and "pdf" not in ctype:
+                    raise FetchError(f"not an HTML or PDF page ({ctype})")
+                if "pdf" in ctype:
+                    body = pdf_text(body)
             except FetchError as e:
                 s.attributes["error"] = str(e)
                 self._record(Visit(url, False, None, (time.perf_counter() - t0) * 1000, False,
                                    str(e)))
                 raise
-            page = Page(url=current, status=status, parsed=parse_html(body, current),
-                        fetched_at=time.time())
+            if "pdf" in ctype:
+                parsed = ParsedPage(title=current.rsplit("/", 1)[-1], text=body, links=[],
+                                    tables=[], blocks=[])
+            else:
+                parsed = parse_html(body, current)
+            page = Page(url=current, status=status, parsed=parsed, fetched_at=time.time(),
+                        raw=body, content_type=ctype)
             s.attributes.update(status=status, chars=len(page.text))
 
         _cache.put(page)
         if current != url:
-            _cache.put(Page(url, page.status, page.parsed, page.fetched_at))
+            _cache.put(Page(url, page.status, page.parsed, page.fetched_at, page.raw,
+                            page.content_type))
         self.pages[url] = page
         self._record(Visit(url, True, status, (time.perf_counter() - t0) * 1000, False,
                            title=page.title))
