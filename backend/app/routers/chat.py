@@ -56,6 +56,7 @@ def ask(payload: AskRequest, request: Request, db: Session = Depends(get_db)) ->
         intent=(result.get("plan") or {}).get("intent"),
         mode=result.get("mode"),
         verifier_pass_rate=((verification.get("claims") or {}).get("pass_rate")),
+        saved=result.get("saved", True),
     )
 
 
