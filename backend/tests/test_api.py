@@ -85,13 +85,11 @@ def test_rate_limit(client, monkeypatch):
 
 
 def test_knowledge_endpoints(client):
-    profs = client.get("/api/professors").json()
-    assert len(profs) >= 10 and profs[0]["review_count"] >= profs[-1]["review_count"]
-    assert client.get("/api/professors/koh").json()["name"] == "Lee Koh"
-    assert client.get("/api/professors/nobody").status_code == 404
     course = client.get("/api/courses/data structures").json()
     assert course["code"] == "CS3358" and "CS3360" in course["unlocks"]
-    cmp = client.get("/api/compare", params={"professors": ["Seaman", "Bhandari"], "course": "CS2308"}).json()
-    assert [p["professor"] for p in cmp["professors"]] == ["Jill Seaman", "Keshav Bhandari"]
+    assert "professors" not in course
+    # Per-instructor profiles and comparisons were removed.
+    assert client.get("/api/professors").status_code == 404
+    assert client.get("/api/compare", params={"professors": ["a", "b"]}).status_code == 404
     plan = client.post("/api/plan", json={"completed": ["CS 2308"]}).json()
     assert "CS1428" in plan["completed"]

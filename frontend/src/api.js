@@ -81,8 +81,6 @@ export const api = {
 
   getAnalytics: () => request("/analytics"),
 
-  listProfessors: () => request("/professors"),
-  getProfessor: (name) => request(`/professors/${encodeURIComponent(name)}`),
   listCourses: () => request("/courses"),
   getCourse: (code) => request(`/courses/${encodeURIComponent(code)}`),
   plan: (completed) =>

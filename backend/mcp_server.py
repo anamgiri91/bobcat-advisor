@@ -46,7 +46,6 @@ from app.agents.orchestrator import answer  # noqa: E402
 from app.agents.specialists import source_label  # noqa: E402
 from app.knowledge import catalog as cat  # noqa: E402
 from app.knowledge.corpus import registry  # noqa: E402
-from app.knowledge.stats import compute_stats, professors_for_course, stats_to_text  # noqa: E402
 from app.rag.index import SearchFilters, get_index  # noqa: E402
 from app.tracing import start_trace  # noqa: E402
 
@@ -68,17 +67,6 @@ def _course(code: str) -> str:
 
 
 @mcp.tool()
-def list_professors() -> list[dict]:
-    """Professors with reviews in the dataset, with review counts and RMP averages."""
-    out = []
-    for p in registry().professors:
-        s = compute_stats(p)
-        out.append({"name": p, "reviews": s["review_count"], "avg_quality": s["avg_quality"],
-                    "avg_difficulty": s["avg_difficulty"], "courses": list(s["courses"])[:5]})
-    return out
-
-
-@mcp.tool()
 def search_reviews(query: str, professor: str | None = None, course: str | None = None,
                    k: int = 6) -> list[dict]:
     """Hybrid (semantic + keyword) search over student reviews and Reddit posts.
@@ -90,21 +78,6 @@ def search_reviews(query: str, professor: str | None = None, course: str | None 
     )
     return [{"source": source_label(r["metadata"]), "text": r["text"]}
             for r in get_index().search(query, k=min(k, 15), filters=filters)]
-
-
-@mcp.tool()
-def professor_stats(professor: str, course: str | None = None) -> str:
-    """Exact review statistics (ratings, difficulty, grade distribution, aspect
-    mention counts with denominators) for a professor, optionally in one course."""
-    return stats_to_text(compute_stats(_prof(professor), _course(course) if course else None))
-
-
-@mcp.tool()
-def compare_for_course(course: str) -> str:
-    """Side-by-side stats for every reviewed professor who teaches a course."""
-    code = _course(course)
-    rows = [s for s in professors_for_course(code) if s["review_count"] >= 2]
-    return "\n\n".join(stats_to_text(s) for s in rows) or f"No reviews for {code}."
 
 
 @mcp.tool()

@@ -14,7 +14,7 @@ const AGENTS = [
   { id: "researcher", label: "Web researcher", desc: "Browses the live TXST catalog" },
   { id: "fact_checker", label: "Fact-checker", desc: "Verifies every requirement against its source" },
   { id: "auditor", label: "Degree auditor", desc: "Checks what you've finished and what's left" },
-  { id: "scheduler", label: "Schedule planner", desc: "Picks courses, balances workload, finds professors" },
+  { id: "scheduler", label: "Schedule planner", desc: "Picks courses, balances workload, plans ahead" },
   { id: "advisor", label: "Advisor", desc: "Writes your advising notes" },
   { id: "verifier", label: "Verifier", desc: "Checks each claim in the notes" },
 ];
@@ -120,11 +120,6 @@ function Schedule({ schedule }) {
             {c.review_count > 0 && (
               <p className="font-mono text-[0.65rem] text-muted mt-1">
                 {c.review_count} reviews · difficulty {c.difficulty ?? "–"}/5 · quality {c.quality ?? "–"}/5
-              </p>
-            )}
-            {c.professors.length > 0 && (
-              <p className="text-xs mt-1">
-                Best-rated: {c.professors.map((p) => `${p.name} (${p.avg_quality}/5, n=${p.n})`).join(" · ")}
               </p>
             )}
             {c.conditions.length > 0 && <p className="text-[0.7rem] text-amber-700 mt-1">Check: {c.conditions.join("; ")}</p>}
