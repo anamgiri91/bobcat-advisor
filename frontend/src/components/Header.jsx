@@ -18,6 +18,7 @@ const LOGO_SVG = `
 
 const TABS = [
   { id: "chat", label: "Ask" },
+  { id: "advisor", label: "Advisor" },
   { id: "professors", label: "Professors" },
   { id: "planner", label: "Planner" },
 ];
@@ -32,7 +33,7 @@ export default function Header({ tab, onTab }) {
             Bobcat <span className="text-gold-light">Advisor</span>
           </h1>
           <p className="text-white/70 text-xs font-body">
-            TXST CS professor Q&A, grounded in real student reviews
+            TXST course advising and professor Q&A, grounded in the catalog and real reviews
           </p>
         </div>
         <nav className="ml-auto flex gap-1" aria-label="Views">

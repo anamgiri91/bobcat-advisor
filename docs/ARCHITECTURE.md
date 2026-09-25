@@ -174,6 +174,13 @@ answers depend on the conversation.
 - **Fairness:** opinions are attributed ("reviewers say"), both sides are presented,
   and the eval judge scores balance.
 - **PII:** emails and phone numbers are redacted from answers and from the stored question.
+- **Web browsing (advising pipeline):** the researcher can only fetch HTTPS
+  pages on allowlisted TXST hosts; redirects are followed by hand and each
+  hop re-checked, so an allowed page can't bounce it to an internal address
+  (SSRF). Pages are size-, time- and count-limited. Page text is untrusted:
+  the LLM extraction fallback must quote the page verbatim, and the
+  fact-checker drops any fact whose quote or course codes aren't on the
+  page, so an injected or hallucinated requirement never reaches the plan.
 
 ## Observability
 
