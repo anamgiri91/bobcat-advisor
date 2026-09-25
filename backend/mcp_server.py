@@ -126,5 +126,19 @@ def recommend_courses(completed: list[str], year: str = "freshman", major: str =
     return {k: done.get(k) for k in ("answer", "schedule", "audit", "factcheck", "flags", "visits")}
 
 
+@mcp.tool()
+def build_timetable(term: str, courses: list[str], preferred_days: str = "",
+                    earliest_start: str | None = None, latest_end: str | None = None,
+                    busy: list[str] | None = None, modality: str | None = None) -> dict:
+    """Clash-free weekly timetables for a term (e.g. "Fall 2026") from the class schedule.
+    busy: blocks like "TR 12:00-17:00". Returns up to 3 options, best first, and any course
+    that couldn't be placed with the reason."""
+    from app.structured.timetable import Preferences
+    from app.structured.timetable import build_timetable as solve
+    prefs = Preferences.from_raw({"preferred_days": preferred_days, "earliest_start": earliest_start,
+                                  "latest_end": latest_end, "busy": busy or [], "modality": modality})
+    codes = [c for course in courses for c in registry().match_courses(course)[:1]]
+    return solve(codes, term, prefs).to_dict()
+
 if __name__ == "__main__":
     mcp.run()

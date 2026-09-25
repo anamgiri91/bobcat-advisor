@@ -114,3 +114,10 @@ class AdviseRequest(BaseModel):
     career_goal: str = Field("", max_length=200)
     minor: str = Field("", max_length=80)
     notes: str = Field("", max_length=1000)
+    term_year: int | None = Field(None, ge=2000, le=2100)
+    # Timetable preferences
+    preferred_days: str = Field("", max_length=14)        # "MWF"
+    earliest_start: str | None = Field(None, max_length=8) # "09:00"
+    latest_end: str | None = Field(None, max_length=8)
+    busy: list[str] = Field(default_factory=list, max_length=10)   # ["TR 12:00-17:00"]
+    modality: str | None = Field(None, max_length=10)

@@ -57,3 +57,8 @@ services:
       # The cross-encoder reranker adds ~100MB RSS; the free plan is 512MB.
       - key: RERANKER_ENABLED
         value: "false"
+
+      # The exact search solver gives the same timetables as OR-Tools for a
+      # student's handful of courses without OR-Tools' ~85MB.
+      - key: TIMETABLE_SOLVER
+        value: search

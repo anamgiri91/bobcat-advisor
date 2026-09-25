@@ -15,9 +15,118 @@ const AGENTS = [
   { id: "fact_checker", label: "Fact-checker", desc: "Verifies every requirement against its source" },
   { id: "auditor", label: "Degree auditor", desc: "Checks what you've finished and what's left" },
   { id: "scheduler", label: "Schedule planner", desc: "Picks courses, balances workload, plans ahead" },
+  { id: "timetable", label: "Timetable builder", desc: "Finds clash-free sections for your week" },
   { id: "advisor", label: "Advisor", desc: "Writes your advising notes" },
   { id: "verifier", label: "Verifier", desc: "Checks each claim in the notes" },
 ];
+
+const WEEKDAYS = ["M", "T", "W", "R", "F"];
+const DAY_NAMES = { M: "Mon", T: "Tue", W: "Wed", R: "Thu", F: "Fri", S: "Sat", U: "Sun" };
+const COLORS = ["bg-maroon/85", "bg-[#8b3a7e]/85", "bg-gold/90", "bg-emerald-700/80", "bg-sky-700/80", "bg-rose-700/80"];
+
+const toMin = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+function WeekGrid({ option }) {
+  const blocks = [];
+  option.sections.forEach((s, i) =>
+    s.meetings.forEach((m) => m.days.split("").forEach((d) => blocks.push({ s, m, d, color: COLORS[i % COLORS.length] })))
+  );
+  const days = [...WEEKDAYS, ...["S", "U"].filter((d) => blocks.some((b) => b.d === d))];
+  if (!blocks.length) return <p className="text-xs text-muted">All sections are online with no set meeting times.</p>;
+  const start = Math.floor(Math.min(...blocks.map((b) => b.m.start)) / 60) * 60;
+  const end = Math.ceil(Math.max(...blocks.map((b) => b.m.end)) / 60) * 60;
+  const PX = 0.8; // pixels per minute
+  const hours = [];
+  for (let t = start; t <= end; t += 60) hours.push(t);
+  return (
+    <div className="flex text-[0.65rem] font-mono overflow-x-auto thin-scroll">
+      <div className="relative shrink-0 w-10" style={{ height: (end - start) * PX + 26 }}>
+        {hours.map((t) => (
+          <span key={t} className="absolute right-1 text-muted" style={{ top: 18 + (t - start) * PX - 6 }}>
+            {String(t / 60).padStart(2, "0")}:00
+          </span>
+        ))}
+      </div>
+      {days.map((d) => (
+        <div key={d} className="relative flex-1 min-w-[3.5rem] border-l border-border" style={{ height: (end - start) * PX + 26 }}>
+          <div className="text-center text-muted h-[18px]">{DAY_NAMES[d]}</div>
+          {hours.map((t) => (
+            <div key={t} className="absolute left-0 right-0 border-t border-border/60" style={{ top: 18 + (t - start) * PX }} />
+          ))}
+          {blocks
+            .filter((b) => b.d === d)
+            .map((b, i) => (
+              <div
+                key={i}
+                title={`${b.s.id} ${b.s.title || ""}`}
+                className={`absolute left-0.5 right-0.5 rounded-md text-white px-1 py-0.5 overflow-hidden ${b.color}`}
+                style={{ top: 18 + (b.m.start - start) * PX, height: Math.max((b.m.end - b.m.start) * PX, 14) }}
+              >
+                {b.s.course}
+              </div>
+            ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Timetable({ timetable, prefs }) {
+  const [idx, setIdx] = useState(0);
+  const option = timetable.options[idx];
+  return (
+    <Card
+      title={`Your week · ${timetable.term}`}
+      right={
+        timetable.options.length > 1 && (
+          <div className="flex gap-1">
+            {timetable.options.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                className={`text-[0.65rem] font-mono px-2 py-0.5 rounded-full border ${
+                  i === idx ? "bg-maroon text-white border-maroon" : "bg-white border-border text-muted"
+                }`}
+              >
+                option {i + 1}
+              </button>
+            ))}
+          </div>
+        )
+      }
+    >
+      {prefs?.length > 0 && <p className="text-[0.7rem] text-muted mb-2">Built around: {prefs.join(" · ")}</p>}
+      {option ? (
+        <>
+          <WeekGrid option={option} />
+          <ul className="mt-3 space-y-1 text-xs">
+            {option.sections.map((s) => (
+              <li key={s.id} className="flex flex-wrap gap-x-2">
+                <span className="font-mono font-semibold">{s.id}</span>
+                <span>{s.times.join(", ")}</span>
+                {s.modality && <span className="text-muted">{s.modality}</span>}
+                {s.seats_open != null && <span className="text-muted">{s.seats_open} seats open</span>}
+                {s.crn && <span className="text-muted">CRN {s.crn}</span>}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="text-xs text-amber-800">{timetable.note || "No clash-free timetable was found."}</p>
+      )}
+      {timetable.unplaced.map((u) => (
+        <p key={u.course} className="text-[0.7rem] text-amber-800 mt-2">
+          Couldn't place {u.course}: {u.reason}
+        </p>
+      ))}
+      <p className="text-[0.65rem] text-muted mt-2">Sections and seats change until registration; check the official schedule.</p>
+    </Card>
+  );
+}
 
 const INTERESTS = ["AI", "Machine learning", "Data", "Security", "Web", "Games", "Systems", "Software", "Theory", "Mobile"];
 const YEARS = ["freshman", "sophomore", "junior", "senior"];
@@ -117,6 +226,7 @@ function Schedule({ schedule }) {
                 <li key={r}>{r}</li>
               ))}
             </ul>
+            {c.offering && <p className="font-mono text-[0.65rem] text-muted mt-1">{c.offering}</p>}
             {c.conditions.length > 0 && <p className="text-[0.7rem] text-amber-700 mt-1">Check: {c.conditions.join("; ")}</p>}
           </div>
         ))}
@@ -235,6 +345,12 @@ export default function AdvisorView() {
     interests: new Set(),
     career_goal: "",
     notes: "",
+    term_year: "",
+    preferred_days: new Set(),
+    earliest_start: "",
+    latest_end: "",
+    busy: "",
+    modality: "",
   });
   const [run, setRun] = useState(null);
   const [error, setError] = useState(null);
@@ -279,6 +395,12 @@ export default function AdvisorView() {
       interests: [...form.interests],
       career_goal: form.career_goal,
       notes: form.notes,
+      term_year: form.term_year ? Number(form.term_year) : null,
+      preferred_days: WEEKDAYS.filter((d) => form.preferred_days.has(d)).join(""),
+      earliest_start: form.earliest_start || null,
+      latest_end: form.latest_end || null,
+      busy: form.busy.split(/[;\n]/).map((x) => x.trim()).filter(Boolean),
+      modality: form.modality || null,
     };
     const update = (fn) => setRun((r) => ({ ...r, ...fn(r) }));
     try {
@@ -291,6 +413,7 @@ export default function AdvisorView() {
           else if (type === "factcheck") update(() => ({ factcheck: data }));
           else if (type === "audit") update(() => ({ audit: data.audit }));
           else if (type === "schedule") update(() => ({ schedule: data.schedule }));
+          else if (type === "timetable") update(() => ({ timetable: data.timetable, ttPrefs: data.preferences }));
           else if (type === "sources") update(() => ({ sources: data.sources }));
           else if (type === "token") update((r) => ({ memo: r.memo + data.text }));
           else if (type === "revision") update(() => ({ memo: data.answer }));
@@ -347,6 +470,10 @@ export default function AdvisorView() {
                 <option>Spring</option>
                 <option>Summer</option>
               </select>
+            </label>
+            <label>
+              <Label>Year (optional)</Label>
+              <input className={INPUT} type="number" min={2024} max={2100} placeholder="next" value={form.term_year} onChange={set("term_year")} />
             </label>
             <label>
               <Label>Target hours</Label>
@@ -410,6 +537,55 @@ export default function AdvisorView() {
             <Label>Career goal</Label>
             <input className={INPUT} placeholder="e.g. machine learning engineer" value={form.career_goal} onChange={set("career_goal")} maxLength={200} />
           </label>
+          <fieldset className="border border-border rounded-xl p-3 space-y-3">
+            <legend className="px-1 font-display text-[0.7rem] uppercase tracking-wider text-muted">Your week (for the timetable)</legend>
+            <div>
+              <Label>Preferred days</Label>
+              <div className="flex gap-1.5">
+                {WEEKDAYS.map((d) => (
+                  <button
+                    type="button"
+                    key={d}
+                    onClick={() => toggle("preferred_days", d)}
+                    className={`text-xs font-mono w-9 py-1 rounded-full border ${
+                      form.preferred_days.has(d) ? "bg-maroon text-white border-maroon" : "bg-white border-border text-muted"
+                    }`}
+                  >
+                    {DAY_NAMES[d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <label>
+                <Label>Not before</Label>
+                <select className={INPUT} value={form.earliest_start} onChange={set("earliest_start")}>
+                  <option value="">any</option>
+                  {["08:00", "09:00", "10:00", "11:00", "12:00"].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                <Label>Not after</Label>
+                <select className={INPUT} value={form.latest_end} onChange={set("latest_end")}>
+                  <option value="">any</option>
+                  {["14:00", "15:00", "17:00", "19:00", "21:00"].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                <Label>Format</Label>
+                <select className={INPUT} value={form.modality} onChange={set("modality")}>
+                  <option value="">any</option>
+                  <option value="in person">in person</option>
+                  <option value="online">online</option>
+                  <option value="hybrid">hybrid</option>
+                </select>
+              </label>
+            </div>
+            <label className="block">
+              <Label>Busy times (work, commute), one per line</Label>
+              <textarea className={INPUT} rows={2} placeholder={"TR 12:00-17:00\nSat 9-13"} value={form.busy} onChange={set("busy")} />
+            </label>
+          </fieldset>
           <label className="block">
             <Label>Anything else</Label>
             <textarea className={INPUT} rows={2} placeholder="I work 20 hours a week…" value={form.notes} onChange={set("notes")} maxLength={1000} />
@@ -460,6 +636,9 @@ export default function AdvisorView() {
             </Card>
           )}
           {run?.schedule && <Schedule schedule={run.schedule} />}
+          {run?.timetable && (
+            <Timetable key={JSON.stringify(run.timetable.courses)} timetable={run.timetable} prefs={run.ttPrefs} />
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             {run?.audit && <Audit audit={run.audit} />}
             {run?.factcheck && <FactCheck report={run.factcheck} />}

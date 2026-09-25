@@ -133,3 +133,12 @@ def txst_web():
     web.set_fetcher(fetcher)
     yield fetcher
     web.set_fetcher(None)
+
+
+@pytest.fixture(autouse=True)
+def _empty_schedule_store(tmp_path, monkeypatch):
+    """Tests never see real schedule data in data/; use the schedule_store fixture to add some."""
+    path = tmp_path / "schedule_sections.jsonl"
+    monkeypatch.setattr("app.structured.schedule.store_path", lambda: path)
+    monkeypatch.setattr("app.structured.offerings.store_path", lambda: path)
+    yield path

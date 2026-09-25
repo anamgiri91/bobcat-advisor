@@ -1,8 +1,9 @@
 name: Knowledge base refresh
 
-# Re-crawls the official TXST pages (app/kb/sources.json), rebuilds the
-# search index, runs the tests and evals, and opens a pull request with the
-# changes. Merging the PR ships the refreshed index (it is baked into the
+# Re-crawls the official TXST pages (app/kb/sources.json) and the class
+# schedule (app/structured/sources.json), rebuilds the search index and the
+# offering history, runs the tests and evals, and opens a pull request with
+# the changes. Merging the PR ships the refreshed index (it is baked into the
 # Docker image). Nothing is published without review.
 
 on:
@@ -48,6 +49,8 @@ jobs:
           else
             python -m app.kb.build | tee kb-report.txt
           fi
+      - name: Class schedule and offering history
+        run: python -m app.structured.build | tee -a kb-report.txt
       - name: Freshness check
         run: python -m app.kb.build --check-freshness | tee -a kb-report.txt
         continue-on-error: true     # reported in the PR; a source with no pages needs its seeds fixed
@@ -70,5 +73,7 @@ jobs:
             backend/data/kb_chunks.jsonl
             backend/data/kb_dates.jsonl
             backend/data/kb_manifest.json
+            backend/data/schedule_sections.jsonl
+            backend/data/course_offerings.json
             backend/data/chunks.jsonl
             backend/data/chroma_db/**

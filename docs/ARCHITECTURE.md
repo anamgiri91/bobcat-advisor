@@ -61,6 +61,7 @@ yields events, and the API streams those same events to the browser over SSE:
 | Knowledge | `app/knowledge/` | `catalog.py` prerequisite graph (CNF), `corpus.py` course registry. |
 | Ingestion | `app/rag/{chunker,cleaner,ingest,embed}.py` | Catalog entries → course normalisation → incremental embed (content-hash IDs). |
 | Advising | `app/advising/` | Seven-agent course-recommendation pipeline over the live TXST catalog (see README). |
+| Structured data | `app/structured/` | Class schedule sections, offering history, OR-Tools timetable builder (see README). |
 | Knowledge base | `app/kb/` | Crawler, heading-based sectioning (HTML + PDF), people scrubbing, dated-fact extraction and freshness for official TXST pages (see README). |
 | API | `app/routers/` | chat (JSON + SSE), advise (JSON + SSE), history, feedback, analytics (+ `/agents`), knowledge (courses, plan). |
 | MCP | `mcp_server.py` | The same tools exposed to any MCP client. |
@@ -89,6 +90,20 @@ stale chunks are dropped before the synthesizer sees them, and the prompt
 requires naming the source and catalog year and pointing to the official
 page. Dates are stored as data because a paragraph can't say it describes
 last year: a fact with an ISO date and term can.
+
+**Tables go in structured stores; prose goes in the index.** The class
+schedule, prerequisites and degree requirements are tables: questions about
+them ("does this fit around my job?", "am I eligible?") are constraint and
+set problems that retrieval can't answer. They're stored as records and
+queried by tools (the prerequisite graph, the timetable solver). The search
+index holds prose: catalog descriptions, policies, syllabi.
+
+**CP-SAT for timetables, loaded lazily.** Section choice is a small
+constraint problem: one section per course, pairwise no-overlap, busy
+blocks, with weighted soft preferences. CP-SAT solves it exactly in
+milliseconds and handles new constraints declaratively. It costs ~85MB, so
+it's imported on first use, and an exact backtracking search (same
+objective, cross-checked in tests) is available for small instances.
 
 **No data about people.** The app indexes only the official catalog. The
 router gives questions about a specific instructor the `instructor` intent,

@@ -1,0 +1,21 @@
+{
+  "_comment": "Class schedule source. `url_templates` is empty until TXST's schedule site has been checked in a browser: fill in one or more GET URLs using {term_code}, {subject}, {year} and {season}. If the site only works through a form POST or an API, it needs a small adapter in app/structured/build.py instead. Until then, load exports with `python -m app.structured.build --import-csv FILE --term \"Fall 2026\"`. Instructor columns are never stored. `term_codes` follow a common Banner pattern and are a guess until checked.",
+  "schedule": {
+    "url_templates": [],
+    "subjects": [
+      "CS",
+      "MATH",
+      "PHIL",
+      "ENG",
+      "COMM",
+      "EE"
+    ],
+    "term_codes": {
+      "Spring": "{year}10",
+      "Summer": "{year}30",
+      "Fall": "{year}70"
+    },
+    "past_terms": 6,
+    "future_terms": 2
+  }
+}

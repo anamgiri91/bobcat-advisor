@@ -13,6 +13,7 @@ a regex is auditable, an LLM extraction isn't.
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 from dataclasses import asdict, dataclass, field
 
@@ -91,6 +92,23 @@ class StudentProfile:
     career_goal: str = ""
     minor: str = ""
     notes: str = ""
+    term_year: int | None = None               # year of the planned term; default: the next one
+    # Timetable preferences (app/structured/timetable.py)
+    preferred_days: str = ""                   # e.g. "MWF"
+    earliest_start: str | None = None          # "09:00"
+    latest_end: str | None = None
+    busy: list[str] = field(default_factory=list)   # "TR 12:00-17:00"
+    modality: str | None = None                # "in person" | "online" | "hybrid"
+
+    @property
+    def planned_term(self) -> str:
+        """'Spring 2027': the named season in term_year, or its next occurrence."""
+        if self.term_year:
+            return f"{self.semester} {self.term_year}"
+        today = dt.date.today()
+        starts = {"Spring": 1, "Summer": 6, "Fall": 8}
+        year = today.year if today.month < starts[self.semester] else today.year + 1
+        return f"{self.semester} {year}"
 
     @property
     def year_index(self) -> int:
@@ -104,12 +122,13 @@ class StudentProfile:
     def to_dict(self) -> dict:
         d = asdict(self)
         d["year_index"] = self.year_index
+        d["planned_term"] = self.planned_term
         return d
 
     def summary(self) -> str:
         lines = [
             f"Major: {self.major} ({self.degree})" + (f", minor in {self.minor}" if self.minor else ""),
-            f"Classification: {self.year}; planning the {self.semester} term",
+            f"Classification: {self.year}; planning the {self.planned_term} term",
             f"Completed: {', '.join(self.completed) or 'none listed'}",
         ]
         if self.in_progress:
@@ -126,6 +145,14 @@ class StudentProfile:
         if self.notes:
             lines.append(f"Student notes: {self.notes}")
         return "\n".join(lines)
+
+
+def _term_year(value) -> int | None:
+    try:
+        year = int(value)
+    except (TypeError, ValueError):
+        return None
+    return year if 2000 <= year <= 2100 else None
 
 
 def build_profile(raw: dict) -> tuple[StudentProfile, list[str]]:
@@ -187,6 +214,12 @@ def build_profile(raw: dict) -> tuple[StudentProfile, list[str]]:
         career_goal=str(raw.get("career_goal") or "").strip()[:200],
         minor=str(raw.get("minor") or "").strip()[:80],
         notes=notes,
+        term_year=_term_year(raw.get("term_year")),
+        preferred_days=str(raw.get("preferred_days") or "")[:14],
+        earliest_start=(str(raw["earliest_start"])[:8] if raw.get("earliest_start") else None),
+        latest_end=(str(raw["latest_end"])[:8] if raw.get("latest_end") else None),
+        busy=[str(b)[:40] for b in (raw.get("busy") or [])][:10],
+        modality=(str(raw["modality"]).lower()[:10] if raw.get("modality") else None),
     )
 
     # Advisor-style flags. Phrased as things to check, not rules: exact
