@@ -5,6 +5,8 @@ POST /api/advise         — course recommendations as JSON
 POST /api/advise/stream  — Server-Sent Events: each agent's progress, every
                            page the researcher visits, the fact-check report,
                            audit, schedule, then the streamed advising memo
+POST /api/advise/whatif  — graduation date under up to 4 scenarios (switch
+                           major, add a minor, fail a course, change load)
 
 Both run the seven-agent pipeline in app/advising/pipeline.py. Advising
 requests share the chat rate limit: each one can fetch up to WEB_MAX_PAGES
@@ -23,7 +25,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from ..advising import pipeline
-from ..schemas import AdviseRequest
+from ..advising.whatif import what_if
+from ..schemas import AdviseRequest, WhatIfRequest
 from ..services.protection import client_key, rate_limiter
 from ..tracing import start_trace
 
@@ -42,6 +45,16 @@ def advise(payload: AdviseRequest, request: Request) -> dict:
     _guard(request)
     with start_trace():
         return pipeline.advise(payload.model_dump())
+
+
+@router.post("/whatif")
+def whatif(payload: WhatIfRequest, request: Request) -> dict:
+    _guard(request)
+    with start_trace() as trace:
+        result = what_if(payload.profile.model_dump(),
+                         [s.model_dump(exclude_none=True) for s in payload.scenarios])
+        result["trace"] = {"total_ms": round(trace.elapsed_ms), "spans": len(trace.spans)}
+    return result
 
 
 _SENTINEL = object()

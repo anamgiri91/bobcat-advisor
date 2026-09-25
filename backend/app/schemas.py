@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -121,3 +122,17 @@ class AdviseRequest(BaseModel):
     latest_end: str | None = Field(None, max_length=8)
     busy: list[str] = Field(default_factory=list, max_length=10)   # ["TR 12:00-17:00"]
     modality: str | None = Field(None, max_length=10)
+
+
+class Scenario(BaseModel):
+    type: Literal["switch_major", "add_minor", "fail_course", "change_load"]
+    major: str | None = Field(None, max_length=80)
+    degree: str | None = Field(None, max_length=6)
+    minor: str | None = Field(None, max_length=80)
+    course: str | None = Field(None, max_length=12)
+    target_credits: int | None = Field(None, ge=3, le=21)
+
+
+class WhatIfRequest(BaseModel):
+    profile: AdviseRequest
+    scenarios: list[Scenario] = Field(..., min_length=1, max_length=4)

@@ -85,4 +85,6 @@ export const api = {
   getCourse: (code) => request(`/courses/${encodeURIComponent(code)}`),
   plan: (completed) =>
     request("/plan", { method: "POST", body: JSON.stringify({ completed }) }),
+  whatIf: (profile, scenarios) =>
+    request("/advise/whatif", { method: "POST", body: JSON.stringify({ profile, scenarios }) }),
 };
