@@ -165,12 +165,33 @@ def prereq_chain(code: str, _seen: set[str] | None = None) -> dict:
     return node
 
 
+@lru_cache(maxsize=1)
+def _reverse_graph() -> dict[str, tuple[str, ...]]:
+    """code -> courses that list it as a prerequisite (built once; the catalog is static)."""
+    rev: dict[str, set[str]] = {}
+    for c in load_catalog().values():
+        for g in c.prereqs:
+            for p in g.courses:
+                rev.setdefault(p, set()).add(c.code)
+    return {k: tuple(sorted(v)) for k, v in rev.items()}
+
+
 def unlocks(code: str) -> list[str]:
     """Courses that list `code` anywhere in their prerequisites."""
-    return sorted(
-        c.code for c in load_catalog().values()
-        if any(code in g.courses for g in c.prereqs)
-    )
+    return list(_reverse_graph().get(code, ()))
+
+
+@lru_cache(maxsize=1024)
+def descendants(code: str) -> frozenset[str]:
+    """Every course with `code` somewhere in its prerequisite chain."""
+    seen: set[str] = set()
+    frontier = [code]
+    while frontier:
+        for nxt in _reverse_graph().get(frontier.pop(), ()):
+            if nxt not in seen and nxt != code:
+                seen.add(nxt)
+                frontier.append(nxt)
+    return frozenset(seen)
 
 
 def is_eligible(code: str, completed: set[str]) -> tuple[bool, list[list[str]], list[str]]:
