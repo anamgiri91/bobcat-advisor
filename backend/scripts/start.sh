@@ -10,8 +10,13 @@ delay=2
 until alembic upgrade head; do
   if [ "$attempt" -ge "$max" ]; then
     echo "FATAL: database migrations failed $max times." >&2
-    echo "Check DATABASE_URL: its host must be reachable from this service" >&2
-    echo "(on Render, an internal dpg-...-a host only resolves in the same region)." >&2
+    echo "Check DATABASE_URL (the 'alembic: migrating database ...' line above shows" >&2
+    echo "which host was used and where the setting came from):" >&2
+    echo " - on Render, set it on the API service's Environment tab; editing the" >&2
+    echo "   database itself doesn't change it. Save, then redeploy." >&2
+    echo " - an internal dpg-...-a host only resolves from services in the same" >&2
+    echo "   region and workspace; otherwise use the External Database URL." >&2
+    echo " - a Secret File named DATABASE_URL overrides the environment variable." >&2
     exit 1
   fi
   echo "Migrations failed (attempt $attempt/$max); retrying in ${delay}s..." >&2

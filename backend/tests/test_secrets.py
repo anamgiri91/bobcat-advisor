@@ -148,3 +148,14 @@ def test_cors_origins_accept_bare_hosts():
     from app.config import _origins
     assert _origins("bobcat.onrender.com, http://localhost:5173,") == [
         "https://bobcat.onrender.com", "http://localhost:5173"]
+
+
+def test_source_is_reported_without_the_value(tmp_path, monkeypatch):
+    """Startup logs say where DATABASE_URL came from: a stale Secret File
+    silently overriding a corrected env var was otherwise invisible."""
+    monkeypatch.setenv("SECRETS_DIR", str(tmp_path))
+    monkeypatch.setenv("SRC_A", "from-env")
+    (tmp_path / "SRC_B").write_text("from-file")
+    assert secrets.get_secret("SRC_A") == "from-env" and secrets.source_of("SRC_A") == "env"
+    assert secrets.get_secret("SRC_B") == "from-file" and secrets.source_of("SRC_B") == "file"
+    assert secrets.get_secret("SRC_C", "d") == "d" and secrets.source_of("SRC_C") == "default"

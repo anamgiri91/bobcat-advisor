@@ -36,6 +36,7 @@ log = logging.getLogger("bobcat.secrets")
 
 DEFAULT_DIRS = ("/etc/secrets", "/run/secrets")
 _cache: dict[str, str | None] = {}
+_sources: dict[str, str] = {}
 _lock = threading.Lock()
 _known_values: set[str] = set()
 _clients: dict[str, object] = {}
@@ -110,11 +111,18 @@ def get_secret(name: str, default: str | None = None) -> str | None:
         if name not in _cache:
             value, source = _resolve(name)
             _cache[name] = value
+            _sources[name] = source if value else "default"
             if value:
                 _known_values.add(value)
                 log.debug("secret %s loaded from %s", name, source)
         value = _cache[name]
     return value if value is not None else default
+
+
+def source_of(name: str) -> str | None:
+    """Where a loaded secret came from (env, file, aws, gcp, NAME_FILE or
+    default): for startup diagnostics, never the value itself."""
+    return _sources.get(name)
 
 
 def export_to_env(*names: str) -> None:
@@ -130,6 +138,7 @@ def clear_cache() -> None:
     """Tests only: forget resolved values and clients."""
     with _lock:
         _cache.clear()
+        _sources.clear()
         _known_values.clear()
         _clients.clear()
 

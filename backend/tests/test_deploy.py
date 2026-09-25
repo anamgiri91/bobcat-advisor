@@ -65,6 +65,21 @@ def test_start_script_is_valid_and_retries_migrations():
     assert "until alembic upgrade head" in text and "exec uvicorn" in text
 
 
+def test_migrations_log_which_database_they_target(tmp_path):
+    """The log names the target and the setting's source, never the password
+    (the Postgres-only migrations themselves can't run on SQLite)."""
+    import os
+    import sys
+    env = {**os.environ, "DATABASE_URL": f"sqlite:///{tmp_path}/m.db", "SECRETS_DIR": str(tmp_path)}
+    r = subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=REPO / "backend",
+                       env=env, capture_output=True, text=True, timeout=120)
+    assert f"alembic: migrating database {tmp_path}/m.db (DATABASE_URL from env)" in r.stderr
+
+    from sqlalchemy import make_url
+    url = make_url("postgresql+psycopg2://u:s3cr%25t@dpg-abc-a/db")
+    assert url.host == "dpg-abc-a" and "s3cr" not in f"{url.host}:{url.port or 5432}/{url.database}"
+
+
 def test_image_runs_as_non_root():
     text = (REPO / "backend/Dockerfile").read_text()
     assert "\nUSER app" in text and "AS build" in text
