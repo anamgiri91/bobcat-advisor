@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: bobcat-advisor
+    folder: Bobcat Advisor
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -111,14 +111,16 @@ def _run_pipeline(question: str, history: list[dict], source_filter: str | None,
             emit({"type": "token", "text": cached["answer"]})
             return done
 
-    with start_trace() as trace:
+    with start_trace(kind="chat") as trace:
         done: dict = {}
         for event in orchestrator.run(question, history, source_filter):
             if event["type"] == "done":
                 done = event
             else:
                 emit(event)
-        done["trace"] = trace.to_dict()
+        trace.attributes.update(intent=(done.get("plan") or {}).get("intent") or "",
+                                mode=done.get("mode") or "")
+    done["trace"] = trace.to_dict()
 
     # Cache only complete, LLM-written answers (not degraded fallbacks).
     if not history and done.get("mode") in ("llm", "canned"):

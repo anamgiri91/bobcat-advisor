@@ -43,14 +43,16 @@ def _guard(request: Request) -> None:
 @router.post("")
 def advise(payload: AdviseRequest, request: Request) -> dict:
     _guard(request)
-    with start_trace():
-        return pipeline.advise(payload.model_dump())
+    with start_trace(kind="advise") as trace:
+        result = pipeline.advise(payload.model_dump())
+        trace.attributes["mode"] = result.get("mode") or ""
+    return result
 
 
 @router.post("/whatif")
 def whatif(payload: WhatIfRequest, request: Request) -> dict:
     _guard(request)
-    with start_trace() as trace:
+    with start_trace(kind="whatif") as trace:
         result = what_if(payload.profile.model_dump(),
                          [s.model_dump(exclude_none=True) for s in payload.scenarios])
         result["trace"] = {"total_ms": round(trace.elapsed_ms), "spans": len(trace.spans)}
@@ -67,9 +69,10 @@ def _events(raw: dict) -> Iterator[dict]:
 
     def worker():
         try:
-            with start_trace() as trace:
+            with start_trace(kind="advise") as trace:
                 for event in pipeline.run(raw):
                     if event["type"] == "done":
+                        trace.attributes["mode"] = event.get("mode") or ""
                         event["trace"] = trace.to_dict()
                     q.put(event)
         except Exception as e:

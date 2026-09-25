@@ -150,6 +150,14 @@ class Settings:
     # used to answer, so a stale deadline or rule can't be quoted as current.
     KB_MAX_AGE_DAYS: int = int(os.environ.get("KB_MAX_AGE_DAYS", "400"))
 
+    # Observability (app/telemetry.py). Export also needs OTEL_EXPORTER_OTLP_ENDPOINT.
+    OTEL_ENABLED: bool = _bool("OTEL_ENABLED", True)
+    # USD per million input/output tokens, per model: {"model": [input, output]}.
+    # Providers don't return prices; copy them from the provider's pricing page.
+    LLM_PRICES: str = os.environ.get("LLM_PRICES", "{}")
+    APP_VERSION: str = os.environ.get("APP_VERSION", "3.1.0")
+    ENVIRONMENT: str = os.environ.get("ENVIRONMENT", "development")
+
     # Abuse protection
     RATE_LIMIT_PER_MINUTE: int = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "20"))
     ANSWER_CACHE_SIZE: int = int(os.environ.get("ANSWER_CACHE_SIZE", "256"))
