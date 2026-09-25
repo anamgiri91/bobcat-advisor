@@ -28,6 +28,12 @@ them. Not affiliated with Texas State University.
   only, split at headings, tagged with URL, catalog year and fetch date,
   instructor details removed from syllabi, deadlines stored as dated
   facts, refreshed by a weekly workflow (see below).
+- **What-if planning.** Switch major, add a minor, fail a course or change
+  the load and see how the graduation term moves.
+- **Production-ready.** OpenTelemetry traces and metrics with a latency and
+  cost dashboard, secrets from AWS/GCP secret managers or secret files, a
+  Render blueprint with its own database, a hardened image, a published
+  load test, and 93% test coverage enforced in CI.
 - **Class schedule and timetables.** Sections live in a structured store
   (not the search index); an OR-Tools CP-SAT solver builds clash-free
   weekly timetables around work hours and preferred days, and the Advisor
@@ -260,16 +266,27 @@ bash scripts/build_index.sh              # incremental: only new/changed entries
 
 ```bash
 cd backend
-pytest -q                                   # incl. the eval gate (no API key needed)
-python -m evals.run_eval                    # router + retrieval + tools report
-python -m evals.run_eval --suite retrieval --compare-configs
+pytest -q --cov=app                         # 250 tests incl. the eval gate; no API key needed
+python -m evals.run_eval                    # router + retrieval + kb + tools report
 python -m evals.run_eval --suite e2e        # full pipeline + LLM judge (needs key)
 ruff check app evals tests
+cd ../frontend && npm test                  # Vitest + Testing Library
 ```
 
-Tests run against SQLite and a fake LLM backend, so the whole agent graph
-(including verifier revisions, model fallback and budget exhaustion) is
-covered offline.
+- **Unit and integration** against SQLite, a fake LLM backend and sample
+  catalog/schedule pages, so the whole agent graph (verifier revisions,
+  model fallback, budget exhaustion, streaming) runs offline.
+- **Property-based** (Hypothesis): timetables are clash-free and optimal
+  against brute force, eligibility matches the prerequisites, scrubbing
+  never leaves contact details, the URL allowlist resists suffix tricks,
+  parsers round-trip every time/day format.
+- **Deployment**: the Render blueprint (database region, no inline
+  secrets, a real health path), the entrypoint, the non-root image.
+- **Observability**: span trees, metrics and cost against in-memory OTel
+  exporters, and a check that the Grafana dashboard only queries metrics
+  the app emits.
+- CI requires 90% backend coverage (currently 93%), scans history for
+  committed secrets (gitleaks), and runs the frontend tests.
 
 ## MCP server
 
@@ -307,21 +324,73 @@ Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_cour
 | GET | `/api/schedule/sections?course=&term=` | Sections for a course (no instructor data) |
 | GET | `/api/offerings/{code}` | "Usually offered in …" with counts |
 | POST | `/api/timetable` | `{term, courses, preferred_days, earliest_start, latest_end, busy, modality}` → clash-free timetables |
-| GET | `/api/health` | Index readiness, LLM availability |
+| POST | `/api/advise/whatif` | `{profile, scenarios: [{type: switch_major/add_minor/fail_course/change_load, ...}]}` → graduation term per scenario |
+| GET | `/api/health/live` | Liveness (process up) |
+| GET | `/api/health` | Readiness: database, index, LLM, telemetry |
+
+## What-if planning
+
+"Switch to a data science minor: when do I graduate?" The **What if…** card
+in the Advisor (and `POST /api/advise/whatif`) compares up to four
+scenarios with your current plan: switch major, add a minor, fail a
+course, or change hours per term. Each reruns research, fact-check, audit
+and roadmap on the changed profile, with no LLM, so the numbers are
+reproducible. Graduation is the slower of the roadmap and the remaining
+hours at your load, and a failed attempt adds its hours back. Every result
+lists its assumptions (e.g. minor courses counting toward the major too).
+
+## Observability
+
+Each request's trace is exported over **OpenTelemetry** as a span tree (one
+span per agent, LLM call and retrieval step, with real timings) plus
+metrics: latency by route and pipeline, per-step p95, requests, LLM calls
+by outcome, tokens by model and type, and **estimated cost** (token counts
+× `LLM_PRICES`, reasoning tokens included). Point
+`OTEL_EXPORTER_OTLP_ENDPOINT` at any OTLP backend (Grafana Cloud,
+Honeycomb, a collector). Locally:
+
+```bash
+docker compose -f docker-compose.yml -f observability/docker-compose.yml up -d
+# Grafana http://localhost:3001 (dashboard "Bobcat Advisor"), Jaeger http://localhost:16686
+```
+
+The dashboard (`observability/grafana/dashboards/bobcat-advisor.json`)
+shows traffic, p50/p95 latency, 5xx rate, per-step latency, cost per
+hour/request/day, tokens, model fallbacks and answer modes.
+
+## Secrets
+
+API keys, the database URL and telemetry auth headers are read through
+`app/secrets.py`: `NAME_FILE`, then AWS Secrets Manager or Google Secret
+Manager (`SECRETS_BACKEND=aws|gcp`, `SECRETS_PREFIX`), then secret files
+(`/etc/secrets/NAME` — Render Secret Files — or `/run/secrets/NAME`), then
+the environment. Loaded values are masked in logs, `render.yaml` holds no
+secret values, and CI runs gitleaks over the whole history.
 
 ## Deployment (Render)
 
-`render.yaml` deploys the backend as a Docker web service on the free plan.
-The index and embedding model are baked into the image, so there's no
-persistent disk and no model download on cold start. Set `GEMINI_API_KEY`,
-`DATABASE_URL` and `CORS_ORIGINS` in the service's environment; migrations
-run on boot (`scripts/start.sh`). Deploy `/frontend` as a static site with
-`VITE_API_BASE_URL` pointing at the backend.
+`render.yaml` is a Blueprint for the API (Docker), its Postgres database
+(same region) and the frontend (static site). Step by step, including
+secrets and checks: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-Memory: the API peaks around 340–390MB. The reranker adds about 100MB, so it's
-off on the 512MB free plan (`RERANKER_ENABLED`). OR-Tools adds ~85MB the
-first time a timetable is built; set `TIMETABLE_SOLVER=search` on the free
-plan if memory is tight.
+- The image bakes in the index and embedding model (no download on cold
+  start), is multi-stage, and runs as a non-root user.
+- The entrypoint retries migrations while a new database comes up and
+  explains a bad `DATABASE_URL` instead of crashing with a traceback.
+- `/api/health/live` is the platform's liveness check; `/api/health`
+  reports database, index, model and telemetry status.
+- Memory: the API peaks around 340–390MB with hybrid retrieval. The
+  reranker (~100MB) is off and the timetable uses the exact search
+  instead of OR-Tools (~85MB) on the 512MB plan.
+
+## Load test
+
+`backend/loadtest/` holds a Locust scenario and a network-free server
+harness. On one worker: 100 concurrent users at 0 failures and 22ms p95
+overall, and ~234 req/s at saturation. Chat is the CPU-bound limit, and in
+production the LLM provider's latency dominates. The test found and fixed
+"database is locked" failures under concurrent writes. Details and caveats:
+**[docs/LOAD_TEST.md](docs/LOAD_TEST.md)**.
 
 ## Project history
 
