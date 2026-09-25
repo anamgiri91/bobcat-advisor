@@ -14,6 +14,7 @@ drop the per-request trace between events.
 from __future__ import annotations
 
 import contextvars
+import logging
 import queue
 import threading
 import time
@@ -21,6 +22,7 @@ import uuid
 from collections.abc import Iterator
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..agents import orchestrator
@@ -29,6 +31,8 @@ from ..guardrails import redact_pii
 from ..models import Conversation, Message
 from ..tracing import start_trace
 from .protection import answer_cache
+
+log = logging.getLogger("bobcat.chat")
 
 HISTORY_TURNS = 6
 
@@ -97,6 +101,20 @@ def persist_turn(
     return conversation_id, assistant.id
 
 
+def safe_persist(db: Session, conversation_id: uuid.UUID | None, question: str,
+                 source_filter: str | None, done: dict, latency_ms: int
+                 ) -> tuple[uuid.UUID, uuid.UUID, bool]:
+    """Save the turn; if the database fails, the student still gets the answer
+    (with `saved: false`) instead of a 500 for work that already succeeded."""
+    try:
+        conv_id, msg_id = persist_turn(db, conversation_id, question, source_filter, done, latency_ms)
+        return conv_id, msg_id, True
+    except SQLAlchemyError:
+        db.rollback()
+        log.exception("couldn't save chat turn; returning the answer unsaved")
+        return conversation_id or uuid.uuid4(), uuid.uuid4(), False
+
+
 def _run_pipeline(question: str, history: list[dict], source_filter: str | None,
                   emit) -> dict:
     """Run the orchestrator (or serve from cache), calling emit(event) for each event."""
@@ -134,8 +152,9 @@ def answer_sync(db: Session, question: str, conversation_id: uuid.UUID | None,
     t0 = time.perf_counter()
     done = _run_pipeline(question, history, source_filter, emit=lambda e: None)
     latency_ms = int((time.perf_counter() - t0) * 1000)
-    conv_id, msg_id = persist_turn(db, conversation_id, question, source_filter, done, latency_ms)
-    return {**done, "conversation_id": conv_id, "message_id": msg_id, "latency_ms": latency_ms}
+    conv_id, msg_id, saved = safe_persist(db, conversation_id, question, source_filter, done, latency_ms)
+    return {**done, "conversation_id": conv_id, "message_id": msg_id, "latency_ms": latency_ms,
+            "saved": saved}
 
 
 _SENTINEL = object()
@@ -153,8 +172,8 @@ def answer_stream(question: str, conversation_id: uuid.UUID | None,
             latency_ms = int((time.perf_counter() - t0) * 1000)
             db = SessionLocal()
             try:
-                conv_id, msg_id = persist_turn(db, conversation_id, question,
-                                               source_filter, done, latency_ms)
+                conv_id, msg_id, saved = safe_persist(db, conversation_id, question,
+                                                      source_filter, done, latency_ms)
             finally:
                 db.close()
             trace = done.get("trace") or {}
@@ -162,6 +181,7 @@ def answer_stream(question: str, conversation_id: uuid.UUID | None,
                 "type": "done",
                 "conversation_id": str(conv_id),
                 "message_id": str(msg_id),
+                "saved": saved,
                 "answer": done.get("answer"),
                 "mode": done.get("mode"),
                 "verification": done.get("verification"),

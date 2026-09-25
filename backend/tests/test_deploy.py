@@ -115,3 +115,29 @@ def test_forged_forwarded_for_cannot_dodge_the_rate_limit(client, monkeypatch):
                          headers={"x-forwarded-for": f"9.9.9.{i}, 203.0.113.7"}).status_code
              for i in range(3)]
     assert codes == [200, 200, 429]
+
+
+# -- resilience -------------------------------------------------------------------
+
+def test_a_database_failure_still_returns_the_answer(client, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+
+    def boom(*a, **kw):
+        raise OperationalError("INSERT", {}, Exception("database is locked"))
+    monkeypatch.setattr("app.services.chat_service.persist_turn", boom)
+    r = client.post("/api/chat/ask", json={"question": "What is CS3358 about?"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["saved"] is False and body["answer"] and body["message_id"]
+    with client.stream("POST", "/api/chat/ask/stream", json={"question": "What is CS2308 about?"}) as s:
+        text = "".join(s.iter_text())
+    assert '"saved": false' in text
+
+
+def test_sqlite_uses_wal_and_a_busy_timeout():
+    from sqlalchemy import text
+
+    from app.database import engine
+    with engine.connect() as conn:
+        assert conn.execute(text("PRAGMA busy_timeout")).scalar() == 15000
+        assert conn.execute(text("PRAGMA journal_mode")).scalar().lower() == "wal"

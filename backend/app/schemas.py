@@ -43,6 +43,7 @@ class AskResponse(BaseModel):
     intent: str | None = None
     mode: str | None = None               # llm | extractive | canned | no_evidence
     verifier_pass_rate: float | None = None
+    saved: bool = True                    # false: answered, but the history write failed
 
 
 # ---------------------------------------------------------------------------
