@@ -15,6 +15,10 @@ claim, and verifies its own answers before you see them.
 - **Multi-agent pipeline.** Router → parallel specialists (reviews, stats,
   catalog, planner) → cited synthesis → claim verifier. Streamed live to the
   UI so you can watch each agent work.
+- **Agentic course recommendations.** A second pipeline of seven agents
+  browses the live TXST catalog for your degree, fact-checks what it read,
+  audits your progress and plans next term from your year, completed
+  courses, major, interests and target load (see below).
 - **Hybrid retrieval.** Dense (MiniLM, ONNX) + BM25, fused with RRF,
   entity-aware filters with relaxation, and optional cross-encoder reranking.
   Every setting was chosen with the eval harness.
@@ -65,6 +69,28 @@ question ─► Guardrails ─► Router (LLM → rules fallback) ─► QueryPl
 
 Design decisions and trade-offs: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 Metrics and methodology: **[docs/EVALUATION.md](docs/EVALUATION.md)**.
+
+## Course recommendations (Advisor tab)
+
+Fill in your major, year, completed and in-progress courses, interests and
+target load; seven agents take it from there, streamed live to the UI:
+
+| Agent | Role | LLM? |
+|---|---|---|
+| Intake | Normalises course codes, year and load; flags a low GPA, an overload, or hours that don't match your classification | no |
+| Web researcher | Browses the live TXST catalog (`mycatalog.txstate.edu`): finds your program page (known URL, else the catalog search), parses the requirement tables, elective groups and four-year plan, then reads the course pages for the courses you need next | only if the page layout isn't recognised |
+| Fact-checker | Checks every fact: official TXST source, quoted verbatim on the fetched page, agrees with the bundled catalog snapshot, right catalog year. Verified / conflict (kept, flagged, stricter reading wins) / dropped | no |
+| Degree auditor | Requirements done / in progress / remaining, elective hours, hours left, where you're behind the suggested four-year plan | no |
+| Schedule planner | Eligibility in both sources, priority (required, unlocks the most, four-year plan position, your interests), workload balance using review difficulty, best-rated professors, a multi-term roadmap | no |
+| Advisor | Writes cited advising notes from the evidence above; template fallback without an LLM | yes |
+| Verifier | Claim-level check of the notes; unsupported sentences removed | yes |
+
+The browser is sandboxed: HTTPS only, hosts under `WEB_ALLOWED_DOMAINS`
+(default `txstate.edu,txst.edu`), every redirect re-checked, a page budget,
+timeout and size cap, and a shared cache. If the catalog can't be reached,
+the planner falls back to the prerequisite graph and says so. Settings:
+`WEB_BROWSING_ENABLED`, `CATALOG_BASE_URL`, `WEB_MAX_PAGES`,
+`WEB_MAX_COURSE_LOOKUPS`, `WEB_TIMEOUT_S`, `WEB_CACHE_TTL_S`.
 
 ## Results
 
@@ -164,7 +190,8 @@ Add to your MCP client config:
 ```
 
 Tools: `list_professors`, `search_reviews`, `professor_stats`,
-`compare_for_course`, `course_info`, `plan_next_courses`, `ask_advisor`.
+`compare_for_course`, `course_info`, `plan_next_courses`, `ask_advisor`,
+`recommend_courses`.
 
 ## API
 
@@ -180,6 +207,8 @@ Tools: `list_professors`, `search_reviews`, `professor_stats`,
 | GET | `/api/courses`, `/api/courses/{code}` | Catalog, prerequisite tree, unlocks, professors |
 | GET | `/api/compare?professors=A&professors=B&course=CS2308` | Side-by-side stats |
 | POST | `/api/plan` | `{"completed": [...]}` → eligible courses |
+| POST | `/api/advise` | Profile (`major`, `year`, `completed`, `in_progress`, `interests`, `target_credits`, …) → schedule, degree audit, fact-check report, roadmap, advising notes |
+| POST | `/api/advise/stream` | Same, as Server-Sent Events (`agent`, `profile`, `browse`, `research`, `factcheck`, `audit`, `schedule`, `sources`, `token`, `verification`, `revision`, `done`) |
 | GET | `/api/health` | Index readiness, LLM availability |
 
 ## Deployment (Render)

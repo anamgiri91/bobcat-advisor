@@ -13,23 +13,21 @@ async function request(path, options = {}) {
 }
 
 /**
- * POST /chat/ask/stream and dispatch Server-Sent Events to onEvent(type, data).
- * EventSource can't POST, so the stream is parsed by hand from fetch().
+ * POST a JSON body and dispatch the Server-Sent Events response to
+ * onEvent(type, data). EventSource can't POST, so the stream is parsed by
+ * hand from fetch().
  */
-async function askStream(question, conversationId, sourceFilter, onEvent, signal) {
-  const res = await fetch(`${BASE}/chat/ask/stream`, {
+async function postStream(path, body, onEvent, signal) {
+  const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question,
-      conversation_id: conversationId || null,
-      source_filter: sourceFilter || null,
-    }),
+    body: JSON.stringify(body),
     signal,
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `Request failed: ${res.status}`);
+    const err = await res.json().catch(() => ({}));
+    const detail = Array.isArray(err.detail) ? err.detail.map((d) => d.msg).join("; ") : err.detail;
+    throw new Error(detail || `Request failed: ${res.status}`);
   }
 
   const reader = res.body.getReader();
@@ -54,8 +52,23 @@ async function askStream(question, conversationId, sourceFilter, onEvent, signal
   }
 }
 
+function askStream(question, conversationId, sourceFilter, onEvent, signal) {
+  return postStream(
+    "/chat/ask/stream",
+    { question, conversation_id: conversationId || null, source_filter: sourceFilter || null },
+    onEvent,
+    signal
+  );
+}
+
+/** POST /advise/stream: the seven-agent course-recommendation pipeline. */
+function adviseStream(profile, onEvent, signal) {
+  return postStream("/advise/stream", profile, onEvent, signal);
+}
+
 export const api = {
   askStream,
+  adviseStream,
 
   listConversations: () => request("/history"),
   getConversation: (id) => request(`/history/${id}`),

@@ -29,7 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import llm
 from .config import settings
 from .database import Base, engine
-from .routers import analytics, chat, feedback, history, knowledge
+from .routers import advise, analytics, chat, feedback, history, knowledge
 
 log = logging.getLogger("bobcat")
 _warm = {"ready": False, "error": None}
@@ -88,6 +88,7 @@ app.include_router(history.router)
 app.include_router(feedback.router)
 app.include_router(analytics.router)
 app.include_router(knowledge.router)
+app.include_router(advise.router)
 
 
 @app.get("/api/health")

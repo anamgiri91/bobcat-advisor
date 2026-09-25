@@ -125,6 +125,22 @@ class Settings:
     # Agent pipeline
     VERIFIER_ENABLED: bool = _bool("VERIFIER_ENABLED", True)
 
+    # Course-recommendation pipeline: web research on the live TXST catalog.
+    # Only hosts under these domains are ever fetched (see advising/web.py).
+    WEB_BROWSING_ENABLED: bool = _bool("WEB_BROWSING_ENABLED", True)
+    CATALOG_BASE_URL: str = os.environ.get("CATALOG_BASE_URL", "https://mycatalog.txstate.edu")
+    WEB_ALLOWED_DOMAINS: list[str] = [
+        d.strip().lower()
+        for d in os.environ.get("WEB_ALLOWED_DOMAINS", "txstate.edu,txst.edu").split(",")
+        if d.strip()
+    ]
+    WEB_TIMEOUT_S: float = float(os.environ.get("WEB_TIMEOUT_S", "10"))
+    WEB_MAX_PAGES: int = int(os.environ.get("WEB_MAX_PAGES", "10"))
+    WEB_MAX_COURSE_LOOKUPS: int = int(os.environ.get("WEB_MAX_COURSE_LOOKUPS", "6"))
+    WEB_MAX_BYTES: int = int(os.environ.get("WEB_MAX_BYTES", "3000000"))
+    # The catalog changes once a year; pages are cached across requests.
+    WEB_CACHE_TTL_S: float = float(os.environ.get("WEB_CACHE_TTL_S", "21600"))
+
     # Abuse protection
     RATE_LIMIT_PER_MINUTE: int = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "20"))
     ANSWER_CACHE_SIZE: int = int(os.environ.get("ANSWER_CACHE_SIZE", "256"))

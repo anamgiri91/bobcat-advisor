@@ -106,3 +106,30 @@ def client():
     rate_limiter.reset()
     with TestClient(app) as c:
         yield c
+
+
+class _OfflineFetcher:
+    def get(self, url, timeout_s):
+        from app.advising.web import FetchError
+        raise FetchError("network disabled in tests")
+
+
+@pytest.fixture(autouse=True)
+def _no_web_by_default():
+    """No test touches the real TXST site; use the txst_web fixture for catalog pages."""
+    from app.advising import web
+    web.set_fetcher(_OfflineFetcher())
+    yield
+    web.set_fetcher(None)
+
+
+@pytest.fixture
+def txst_web():
+    """Serve the CourseLeaf fixture pages in tests/txst_fixtures.py."""
+    from app.advising import web
+    from tests.txst_fixtures import FakeFetcher
+
+    fetcher = FakeFetcher()
+    web.set_fetcher(fetcher)
+    yield fetcher
+    web.set_fetcher(None)
