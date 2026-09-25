@@ -18,7 +18,7 @@ The course-recommendation pipeline: seven agents, one event stream.
     │ Auditor  │  requirements done / in progress / remaining, hours left
     └────┬─────┘
     ┌────▼─────┐  eligibility (both sources), priority, interests,
-    │Scheduler │  workload balance, professors, multi-term roadmap
+    │Scheduler │  workload balance, multi-term roadmap
     └────┬─────┘
     ┌────▼─────┐
     │ Advisor  │  streamed, cited advising memo (template fallback)

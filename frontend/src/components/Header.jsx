@@ -19,7 +19,6 @@ const LOGO_SVG = `
 const TABS = [
   { id: "chat", label: "Ask" },
   { id: "advisor", label: "Advisor" },
-  { id: "professors", label: "Professors" },
   { id: "planner", label: "Planner" },
 ];
 

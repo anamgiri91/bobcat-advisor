@@ -3,9 +3,8 @@ import Header from "./components/Header";
 import AdvisorView from "./views/AdvisorView";
 import ChatView from "./views/ChatView";
 import PlannerView from "./views/PlannerView";
-import ProfessorsView from "./views/ProfessorsView";
 
-const TABS = ["chat", "advisor", "professors", "planner"];
+const TABS = ["chat", "advisor", "planner"];
 
 function tabFromHash() {
   const t = window.location.hash.replace("#", "");
@@ -13,7 +12,7 @@ function tabFromHash() {
 }
 
 export default function App() {
-  // Deep links: #advisor / #professors / #planner pick a view, ?q=... asks a question.
+  // Deep links: #advisor / #planner pick a view, ?q=... asks a question.
   const [tab, setTabState] = useState(tabFromHash);
   const [pendingQuestion, setPendingQuestion] = useState(() => {
     const q = new URLSearchParams(window.location.search).get("q");
@@ -47,7 +46,6 @@ export default function App() {
         <ChatView pendingQuestion={pendingQuestion} onPendingHandled={() => setPendingQuestion(null)} />
       </div>
       {tab === "advisor" && <AdvisorView />}
-      {tab === "professors" && <ProfessorsView onAsk={ask} />}
       {tab === "planner" && <PlannerView onAsk={ask} />}
     </div>
   );

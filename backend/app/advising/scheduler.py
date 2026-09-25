@@ -15,8 +15,7 @@ It plays three advisor sub-roles:
                 plan puts it + match with the student's interests - a
                 penalty for courses well above their year
   workload      fills up to the target credit load, capping high-difficulty
-                courses (from review stats) per term, and names the best
-                rated professors for each pick
+                courses (from course-level review stats) per term
 
 Without verified degree requirements (catalog unreachable), it falls back
 to the prerequisite graph alone and says so.
@@ -28,7 +27,7 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from ..knowledge import catalog as cat
-from ..knowledge.stats import compute_stats, professors_for_course
+from ..knowledge.stats import compute_stats
 from ..tracing import span
 from .audit import AuditResult, _year_of, course_hours
 from .factcheck import CONFLICT, FactCheckReport
@@ -96,7 +95,6 @@ class Recommendation:
     difficulty: float | None = None
     quality: float | None = None
     review_count: int = 0
-    professors: list[dict] = field(default_factory=list)
     conditions: list[str] = field(default_factory=list)
     conflict: bool = False
 
@@ -130,9 +128,6 @@ class SchedulePlan:
             line = f"- {c.code} {c.title} ({c.hours} hrs, {c.kind}: {c.requirement})"
             if c.review_count:
                 line += f" | {c.review_count} reviews, difficulty {c.difficulty}/5"
-            if c.professors:
-                line += " | best-rated: " + ", ".join(
-                    f"{p['name']} ({p['avg_quality']}/5, n={p['n']})" for p in c.professors)
             line += " | why: " + "; ".join(c.reasons)
             if c.conditions:
                 line += " | check: " + "; ".join(c.conditions)
@@ -356,12 +351,6 @@ class _Planner:
             if detailed:
                 rec.difficulty, rec.quality = diff, st.get("avg_quality")
                 rec.review_count = st["review_count"]
-                profs = [p for p in professors_for_course(cand.code)
-                         if p["review_count"] >= 3 and p["avg_quality"] is not None]
-                profs.sort(key=lambda p: -p["avg_quality"])
-                rec.professors = [{"name": p["professor"], "avg_quality": p["avg_quality"],
-                                   "avg_difficulty": p["avg_difficulty"], "n": p["review_count"]}
-                                  for p in profs[:2]]
                 if cand.conflict:
                     rec.conditions.append("live catalog and snapshot disagree on this requirement")
             picks.append(rec)

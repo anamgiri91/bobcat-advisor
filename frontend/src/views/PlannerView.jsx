@@ -20,7 +20,7 @@ export default function PlannerView({ onAsk }) {
     api.plan([...completed]).then(setResult).catch((e) => setError(e.message));
   }, [completed]);
 
-  // Review stats for each eligible course (difficulty, professors).
+  // Course-level review stats for each eligible course (difficulty, quality).
   useEffect(() => {
     if (!result) return;
     result.eligible.forEach((c) => {
@@ -91,7 +91,7 @@ export default function PlannerView({ onAsk }) {
               <h2 className="font-display font-extrabold text-lg">You can take ({eligible.length})</h2>
               <button
                 onClick={() =>
-                  onAsk(`I've taken ${[...completed].join(", ")}. What should I take next and with which professors?`)
+                  onAsk(`I've taken ${[...completed].join(", ")}. What should I take next?`)
                 }
                 className="text-xs font-display font-bold uppercase tracking-wide bg-maroon text-white rounded-xl px-4 py-2 hover:bg-maroon-light"
               >
@@ -101,10 +101,6 @@ export default function PlannerView({ onAsk }) {
             <div className="grid md:grid-cols-2 gap-3">
               {eligible.map((c) => {
                 const d = details[c.code];
-                const profs = (d?.professors || [])
-                  .filter((p) => p.avg_quality != null && p.review_count >= 3)
-                  .sort((a, b) => b.avg_quality - a.avg_quality)
-                  .slice(0, 3);
                 return (
                   <div key={c.code} className="bg-white border border-border rounded-xl p-4 shadow-card">
                     <div className="flex justify-between gap-2">
@@ -122,11 +118,6 @@ export default function PlannerView({ onAsk }) {
                       </p>
                     ) : (
                       <p className="font-mono text-[0.7rem] text-muted mt-1">no reviews in dataset</p>
-                    )}
-                    {profs.length > 0 && (
-                      <p className="text-xs mt-2">
-                        {profs.map((p) => `${p.professor} (${p.avg_quality}/5, n=${p.review_count})`).join(" · ")}
-                      </p>
                     )}
                     {c.conditions.length > 0 && (
                       <p className="text-[0.7rem] text-amber-700 mt-2">Also check: {c.conditions.join("; ")}</p>

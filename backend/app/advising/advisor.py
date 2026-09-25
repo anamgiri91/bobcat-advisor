@@ -49,7 +49,7 @@ confirm it with their official degree audit or departmental advisor.
 STRUCTURE (use these bold headings, short paragraphs and "- " bullets, no tables)
 **Where you stand** — one or two sentences from the degree audit.
 **Recommended for {term}** — one bullet per course: code and title, why (requirement, what it \
-unlocks, interests), and the best-rated professor if one is listed.
+unlocks, interests). Never name or rate individual instructors.
 **Watch out for** — conflicts, conditions to check, flags from intake, workload notes. Skip if \
 there are none.
 **Looking ahead** — two or three sentences from the roadmap, tied to their goals.
@@ -103,10 +103,6 @@ def build_evidence(profile: StudentProfile, flags: list[str], research: Research
         if c.review_count:
             line += (f" Review stats: {c.review_count} reviews, average difficulty "
                      f"{c.difficulty}/5, average quality {c.quality}/5.")
-        if c.professors:
-            line += " Best-rated professors: " + ", ".join(
-                f"{p['name']} ({p['avg_quality']}/5 quality, {p['avg_difficulty']}/5 difficulty, "
-                f"{p['n']} reviews)" for p in c.professors) + "."
         if c.conditions:
             line += " Check: " + "; ".join(c.conditions) + "."
         add("schedule", f"Schedule planner — {c.code}", line, "scheduler", course=c.code)
@@ -169,9 +165,6 @@ def extractive_memo(profile: StudentProfile, flags: list[str], evidence: list[Ev
     for c in plan.courses:
         cite = n.get(f"Schedule planner — {c.code}")
         line = f"- {c.code} {c.title} ({c.hours} hrs): {'; '.join(c.reasons) or 'eligible'}"
-        if c.professors:
-            p = c.professors[0]
-            line += f"; best-rated: {p['name']} ({p['avg_quality']}/5)"
         out.append(line + f" [{cite}].")
     warn_n = n["Schedule planner — load, deferrals and warnings"]
     watch = [f"- {f} [1]." for f in flags]

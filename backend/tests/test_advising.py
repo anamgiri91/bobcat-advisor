@@ -363,3 +363,10 @@ def test_api_advise_stream(client, txst_web):
 def test_api_validates_input(client):
     assert client.post("/api/advise", json={"target_credits": 40}).status_code == 422
     assert client.post("/api/advise", json={"gpa": 5}).status_code == 422
+
+
+def test_recommendations_never_name_instructors(txst_web):
+    with start_trace():
+        done = list(run(SOPHOMORE))[-1]
+    assert all("professors" not in c for c in done["schedule"]["courses"])
+    assert "best-rated" not in done["answer"].lower()

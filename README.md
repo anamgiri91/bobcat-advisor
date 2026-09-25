@@ -61,7 +61,7 @@ question ─► Guardrails ─► Router (LLM → rules fallback) ─► QueryPl
 
 | | |
 |---|---|
-| Frontend | React + Vite + Tailwind. Chat with live agent trace, clickable citations, verification badge; Professors (stats profiles) and Planner views |
+| Frontend | React + Vite + Tailwind. Chat with live agent trace, clickable citations, verification badge; Advisor and Planner views |
 | API | FastAPI: JSON and SSE chat, history, feedback, analytics, knowledge endpoints |
 | LLM | Gemini (`gemini-3.6-flash`, fallback `gemini-3.5-flash-lite`) or Groq, through one OpenAI-compatible HTTP client with no vendor SDK. Models, reasoning effort and deadlines are env-configurable; `/api/health?deep=true` probes that the key can actually use them |
 | Retrieval | ChromaDB (persistence) + in-memory exact hybrid search |
@@ -81,7 +81,7 @@ target load; seven agents take it from there, streamed live to the UI:
 | Web researcher | Browses the live TXST catalog (`mycatalog.txstate.edu`): finds your program page (known URL, else the catalog search), parses the requirement tables, elective groups and four-year plan, then reads the course pages for the courses you need next | only if the page layout isn't recognised |
 | Fact-checker | Checks every fact: official TXST source, quoted verbatim on the fetched page, agrees with the bundled catalog snapshot, right catalog year. Verified / conflict (kept, flagged, stricter reading wins) / dropped | no |
 | Degree auditor | Requirements done / in progress / remaining, elective hours, hours left, where you're behind the suggested four-year plan | no |
-| Schedule planner | Eligibility in both sources, priority (required, unlocks the most, four-year plan position, your interests), workload balance using review difficulty, best-rated professors, a multi-term roadmap | no |
+| Schedule planner | Eligibility in both sources, priority (required, unlocks the most, four-year plan position, your interests), workload balance using course-level review difficulty, a multi-term roadmap | no |
 | Advisor | Writes cited advising notes from the evidence above; template fallback without an LLM | yes |
 | Verifier | Claim-level check of the notes; unsupported sentences removed | yes |
 
@@ -189,8 +189,7 @@ Add to your MCP client config:
     "args": ["/abs/path/backend/mcp_server.py"] } } }
 ```
 
-Tools: `list_professors`, `search_reviews`, `professor_stats`,
-`compare_for_course`, `course_info`, `plan_next_courses`, `ask_advisor`,
+Tools: `search_reviews`, `course_info`, `plan_next_courses`, `ask_advisor`,
 `recommend_courses`.
 
 ## API
@@ -203,9 +202,7 @@ Tools: `list_professors`, `search_reviews`, `professor_stats`,
 | POST | `/api/feedback` | 👍/👎 on an answer |
 | GET | `/api/analytics` | Headline usage numbers |
 | GET | `/api/analytics/agents` | p50/p95 per agent span, tokens, verifier pass rate, feedback by intent |
-| GET | `/api/professors`, `/api/professors/{name}` | Stats profiles (fuzzy name matching) |
-| GET | `/api/courses`, `/api/courses/{code}` | Catalog, prerequisite tree, unlocks, professors |
-| GET | `/api/compare?professors=A&professors=B&course=CS2308` | Side-by-side stats |
+| GET | `/api/courses`, `/api/courses/{code}` | Catalog, prerequisite tree, unlocks, course-level review stats |
 | POST | `/api/plan` | `{"completed": [...]}` → eligible courses |
 | POST | `/api/advise` | Profile (`major`, `year`, `completed`, `in_progress`, `interests`, `target_credits`, …) → schedule, degree audit, fact-check report, roadmap, advising notes |
 | POST | `/api/advise/stream` | Same, as Server-Sent Events (`agent`, `profile`, `browse`, `research`, `factcheck`, `audit`, `schedule`, `sources`, `token`, `verification`, `revision`, `done`) |
