@@ -28,10 +28,11 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Lint
         run: ruff check app evals tests
-      - name: Tests + offline eval gate
+      - name: Tests + offline eval gate + coverage
         # Includes tests/test_eval_gate.py: router, tools and retrieval
-        # metrics must not fall below evals/baseline.json.
-        run: pytest -q
+        # metrics must not fall below evals/baseline.json. Coverage below
+        # the floor fails the build.
+        run: pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-fail-under=88
       - name: Eval report
         if: always()
         run: python -m evals.run_eval
@@ -40,6 +41,17 @@ jobs:
         with:
           name: eval-results
           path: backend/evals/results/
+
+  secrets:
+    # Fails the build if a credential is committed anywhere in history.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   frontend:
     runs-on: ubuntu-latest

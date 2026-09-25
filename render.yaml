@@ -1,48 +1,60 @@
-# Render deployment blueprint for the Bobcat Advisor backend.
+# Render Blueprint: API (Docker) + Postgres + frontend (static site).
 #
-# The frontend is NOT included here — deploy /frontend separately as a
-# Render Static Site. Set VITE_API_BASE_URL to this backend's public URL,
-# for example:
-# https://bobcat-advisor-api.onrender.com/api
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo. Then set the
+# values marked `sync: false` in each service's Environment tab (Render keeps
+# them encrypted; or use Secret Files, which app/secrets.py reads from
+# /etc/secrets/<NAME>).
 #
-# IMPORTANT:
-# We are using the existing Render PostgreSQL instance
-# "provenance-guard-db" and the separate logical database
-# "bobcat_advisor" inside that instance.
+# Why the database is declared here: the API previously pointed at a
+# database from another project via a hand-copied internal hostname
+# (dpg-...-a). Internal hostnames only resolve for services in the same
+# workspace and region; when that database went away, startup failed with
+# "could not translate host name". Declaring it here, in the same region,
+# lets Render wire DATABASE_URL itself.
 #
-# Therefore, this Blueprint does NOT define a `databases:` section.
-#
-# The DATABASE_URL will be entered manually in the Render service's
-# Environment settings after the Blueprint creates the web service.
-#
-# No persistent disk is used here. The ChromaDB index + chunks.jsonl
-# are committed to git and baked into the Docker image at build time.
-#
-# No startCommand is specified because the Docker image's CMD handles
-# migrations and starts uvicorn.
+# Free plan notes: the API sleeps after ~15 minutes idle (first request then
+# takes ~30-60s), and free Postgres databases expire after a limited period
+# (check Render's current terms); upgrade either for a demo that must stay up.
+
+databases:
+  - name: bobcat-advisor-db
+    databaseName: bobcat_advisor
+    user: bobcat
+    plan: free
+    region: oregon
 
 services:
   - type: web
     name: bobcat-advisor-api
     runtime: docker
+    region: oregon                # same region as the database
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
-    healthCheckPath: /api/health
-
+    # Liveness only: the process is up. /api/health (readiness, with database
+    # and model status) is for dashboards and uptime monitors.
+    healthCheckPath: /api/health/live
+    autoDeploy: true
     envVars:
-      # LLM provider: Gemini (OpenAI-compatible API). Set GROQ_API_KEY
-      # instead (and LLM_PROVIDER=groq) to use Groq.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bobcat-advisor-db
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+
+      # Secrets: set in the dashboard (or as Secret Files). Never in this file.
       - key: GEMINI_API_KEY
         sync: false
-
-      - key: DATABASE_URL
-        sync: false
-
-      - key: CHROMA_DB_PATH
-        value: data/chroma_db
-
+      # The frontend's URL, e.g. bobcat-advisor-web.onrender.com (https:// is added).
       - key: CORS_ORIGINS
+        sync: false
+      # Optional: OpenTelemetry export (Grafana Cloud, Honeycomb, a collector...).
+      # Put OTEL_EXPORTER_OTLP_HEADERS (auth) in a Secret File, not here.
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      # Optional: USD per 1M input/output tokens per model, for the cost dashboard.
+      - key: LLM_PRICES
         sync: false
 
       # Model IDs live in env vars so a provider deprecation is a config change.
@@ -54,11 +66,36 @@ services:
       - key: LLM_FAST_MODEL
         value: gemini-3.6-flash
 
-      # The cross-encoder reranker adds ~100MB RSS; the free plan is 512MB.
+      # 512MB free plan: no reranker (~100MB) and the exact timetable search
+      # instead of OR-Tools (~85MB); both give the same results here.
       - key: RERANKER_ENABLED
         value: "false"
-
-      # The exact search solver gives the same timetables as OR-Tools for a
-      # student's handful of courses without OR-Tools' ~85MB.
       - key: TIMETABLE_SOLVER
         value: search
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
+
+  - type: web
+    name: bobcat-advisor-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      # The API's URL + /api, e.g. https://bobcat-advisor-api.onrender.com/api
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
