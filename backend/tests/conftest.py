@@ -16,6 +16,8 @@ os.environ["DATABASE_URL"] = f"sqlite:///{Path(_tmp) / 'test.db'}"
 os.environ["GROQ_API_KEY"] = ""
 os.environ["GEMINI_API_KEY"] = ""  # never hit a real provider from tests
 os.environ["RATE_LIMIT_PER_MINUTE"] = "1000"
+os.environ["SECRETS_DIR"] = tempfile.mkdtemp(prefix="bobcat-secrets-")   # never read host secret files
+os.environ.pop("SECRETS_BACKEND", None)
 # Tests run from backend/, where data/ and documents/ live.
 os.chdir(Path(__file__).resolve().parent.parent)
 

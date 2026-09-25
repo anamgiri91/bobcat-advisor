@@ -31,7 +31,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from . import llm, telemetry
+from . import llm, secrets, telemetry
 from .config import settings
 from .database import Base, engine
 from .routers import advise, analytics, chat, feedback, history, knowledge, schedule
@@ -68,6 +68,8 @@ async def lifespan(app: FastAPI):
     # Dev convenience: create tables if they don't exist yet.
     # In production, run `alembic upgrade head` instead (see backend/alembic).
     Base.metadata.create_all(bind=engine)
+    secrets.install_log_redaction()
+    secrets.export_to_env("OTEL_EXPORTER_OTLP_HEADERS")   # read by the OTel SDK from env
     telemetry.setup()
     threading.Thread(target=_warmup, daemon=True).start()
     yield

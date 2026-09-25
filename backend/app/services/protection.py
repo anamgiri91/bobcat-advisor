@@ -92,8 +92,16 @@ answer_cache = AnswerCache(settings.ANSWER_CACHE_SIZE)
 
 
 def client_key(request) -> str:
-    """Client IP, honouring the proxy header Render/nginx set."""
+    """
+    Client IP for rate limiting. Proxies append to X-Forwarded-For, so the
+    leftmost entries are whatever the client sent and can be forged to dodge
+    the limit. Trust only the entry added by our own proxy: the
+    TRUSTED_PROXY_HOPS-th from the right (1 = Render's edge or the bundled nginx).
+    """
+    hops = settings.TRUSTED_PROXY_HOPS
     fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    if fwd and hops > 0:
+        parts = [p.strip() for p in fwd.split(",") if p.strip()]
+        if parts:
+            return parts[-hops] if len(parts) >= hops else parts[0]
     return request.client.host if request.client else "unknown"

@@ -11,6 +11,8 @@ import os
 
 from dotenv import load_dotenv
 
+from .secrets import get_secret
+
 load_dotenv()
 
 
@@ -47,11 +49,20 @@ def _provider() -> str:
     explicit = os.environ.get("LLM_PROVIDER", "auto").strip().lower()
     if explicit in PROVIDERS:
         return explicit
-    if os.environ.get("GEMINI_API_KEY"):
+    if get_secret("GEMINI_API_KEY"):
         return "gemini"
-    if os.environ.get("GROQ_API_KEY"):
+    if get_secret("GROQ_API_KEY"):
         return "groq"
     return "gemini"
+
+
+def _origins(raw: str) -> list[str]:
+    """Comma-separated origins; a bare host (as Render's fromService gives) gets https://."""
+    out = []
+    for o in (x.strip() for x in raw.split(",")):
+        if o:
+            out.append(o if "://" in o else f"https://{o}")
+    return out
 
 
 def _llm_env(suffix: str, key: str) -> str:
@@ -63,10 +74,9 @@ def _llm_env(suffix: str, key: str) -> str:
 
 class Settings:
     # Postgres — chat history, feedback, analytics (NOT vector storage)
-    DATABASE_URL: str = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+psycopg2://bobcat:bobcat@localhost:5432/bobcat_advisor",
-    )
+    # Secrets come from a secrets manager, secret files or env (app/secrets.py).
+    DATABASE_URL: str = get_secret(
+        "DATABASE_URL", "postgresql+psycopg2://bobcat:bobcat@localhost:5432/bobcat_advisor")
 
     # ChromaDB — persistent vector store for RAG retrieval
     CHROMA_DB_PATH: str = os.environ.get("CHROMA_DB_PATH", "data/chroma_db")
@@ -76,8 +86,8 @@ class Settings:
     # LLM provider. Both providers expose an OpenAI-compatible chat API, so one
     # HTTP backend (app/llm.py) serves either; switching is configuration.
     # "auto" picks Gemini when GEMINI_API_KEY is set, else Groq.
-    GEMINI_API_KEY: str | None = os.environ.get("GEMINI_API_KEY") or None
-    GROQ_API_KEY: str | None = os.environ.get("GROQ_API_KEY") or None
+    GEMINI_API_KEY: str | None = get_secret("GEMINI_API_KEY")
+    GROQ_API_KEY: str | None = get_secret("GROQ_API_KEY")
     LLM_PROVIDER: str = _provider()
     LLM_API_KEY: str | None = GEMINI_API_KEY if LLM_PROVIDER == "gemini" else GROQ_API_KEY
     LLM_BASE_URL: str = os.environ.get("LLM_BASE_URL", PROVIDERS[LLM_PROVIDER]["base_url"])
@@ -159,15 +169,14 @@ class Settings:
     ENVIRONMENT: str = os.environ.get("ENVIRONMENT", "development")
 
     # Abuse protection
+    # Proxies in front of the app that append to X-Forwarded-For (Render: 1).
+    # 0 = ignore the header and use the socket address.
+    TRUSTED_PROXY_HOPS: int = int(os.environ.get("TRUSTED_PROXY_HOPS", "1"))
     RATE_LIMIT_PER_MINUTE: int = int(os.environ.get("RATE_LIMIT_PER_MINUTE", "20"))
     ANSWER_CACHE_SIZE: int = int(os.environ.get("ANSWER_CACHE_SIZE", "256"))
 
     # CORS — the deployed frontend origin(s), comma-separated
-    CORS_ORIGINS: list[str] = [
-        o.strip()
-        for o in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
-        if o.strip()
-    ]
+    CORS_ORIGINS: list[str] = _origins(os.environ.get("CORS_ORIGINS", "http://localhost:5173"))
 
 
 settings = Settings()
