@@ -23,12 +23,15 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-from . import llm
+from . import llm, telemetry
 from .config import settings
 from .database import Base, engine
 from .routers import advise, analytics, chat, feedback, history, knowledge, schedule
@@ -47,7 +50,8 @@ def _warmup() -> None:
         from .knowledge.corpus import registry
         from .rag.index import embed_query, get_index
         get_index()
-        embed_query("warmup")
+        if settings.RETRIEVAL_MODE != "bm25":   # keyword-only mode never loads the model
+            embed_query("warmup")
         registry()
         missing = llm.missing_models()
         if missing:
@@ -64,16 +68,46 @@ async def lifespan(app: FastAPI):
     # Dev convenience: create tables if they don't exist yet.
     # In production, run `alembic upgrade head` instead (see backend/alembic).
     Base.metadata.create_all(bind=engine)
+    telemetry.setup()
     threading.Thread(target=_warmup, daemon=True).start()
     yield
+    telemetry.shutdown()
 
 
 app = FastAPI(
     title="Bobcat Advisor API",
     description="Multi-agent advisor for TXST CS courses, grounded in the official catalog.",
-    version="3.0.0",
+    version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Frame-Options": "DENY",
+}
+
+
+@app.middleware("http")
+async def observe(request: Request, call_next):
+    """Request id, security headers, and per-route latency for telemetry.
+    The route template (/api/courses/{code}) is used, never the raw path,
+    so metrics stay low-cardinality."""
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:16]
+    t0 = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+    finally:
+        route = request.scope.get("route")
+        telemetry.record_http(getattr(route, "path", "unmatched"), request.method, status,
+                              (time.perf_counter() - t0) * 1000)
+    response.headers["X-Request-ID"] = request_id
+    for k, v in _SECURITY_HEADERS.items():
+        response.headers.setdefault(k, v)
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,6 +126,22 @@ app.include_router(advise.router)
 app.include_router(schedule.router)
 
 
+def _db_ok() -> bool:
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        log.warning("database health check failed", exc_info=True)
+        return False
+
+
+@app.get("/api/health/live")
+def live():
+    """Liveness: the process is up. Doesn't touch the database or the LLM."""
+    return {"status": "ok"}
+
+
 @app.get("/api/health")
 def health(deep: bool = False):
     """
@@ -99,8 +149,12 @@ def health(deep: bool = False):
     the only reliable check that the key can use them. Use it after changing
     LLM_*_MODEL, not as the platform's liveness probe.
     """
+    db_ok = _db_ok()
     out = {
-        "status": "ok",
+        "status": "ok" if db_ok and _warm["error"] is None else "degraded",
+        "version": settings.APP_VERSION,
+        "database": "ok" if db_ok else "unreachable",
+        "telemetry": telemetry.enabled(),
         "index_ready": _warm["ready"],
         "warmup_error": _warm["error"],
         "llm_provider": settings.LLM_PROVIDER,

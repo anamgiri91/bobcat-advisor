@@ -30,3 +30,9 @@ pypdf==5.1.0
 # Timetable builder: CP-SAT solver. Imported only when a timetable is
 # requested (~85MB RSS); TIMETABLE_SOLVER=search avoids it entirely.
 ortools==9.15.6755
+
+# Observability: OpenTelemetry traces + metrics over OTLP (app/telemetry.py).
+# Versions match what chromadb already pulls in.
+opentelemetry-sdk==1.45.0
+opentelemetry-exporter-otlp-proto-http==1.45.0
+opentelemetry-exporter-otlp-proto-grpc==1.45.0
