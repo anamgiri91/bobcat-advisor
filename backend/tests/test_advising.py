@@ -321,7 +321,8 @@ def test_pipeline_stream_without_llm(txst_web):
     assert "MATH2358" in done["answer"]
     assert done["verification"]["citations"]["invalid_citations"] == []
     agents = [e["agent"] for e in events if e["type"] == "agent" and e["status"] == "done"]
-    assert agents == ["intake", "researcher", "fact_checker", "auditor", "scheduler", "advisor"]
+    assert agents == ["intake", "researcher", "fact_checker", "auditor", "scheduler", "timetable",
+                      "advisor"]
 
 
 def test_pipeline_with_llm_verifies_memo(txst_web, fake_llm):

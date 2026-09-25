@@ -142,6 +142,10 @@ class Settings:
     # The catalog changes once a year; pages are cached across requests.
     WEB_CACHE_TTL_S: float = float(os.environ.get("WEB_CACHE_TTL_S", "21600"))
 
+    # Timetable solver: "auto" (OR-Tools if installed, else exact search),
+    # "ortools", or "search" (no OR-Tools import: saves ~85MB of memory).
+    TIMETABLE_SOLVER: str = os.environ.get("TIMETABLE_SOLVER", "auto")
+
     # Knowledge base (app/kb): chunks fetched longer ago than this are not
     # used to answer, so a stale deadline or rule can't be quoted as current.
     KB_MAX_AGE_DAYS: int = int(os.environ.get("KB_MAX_AGE_DAYS", "400"))

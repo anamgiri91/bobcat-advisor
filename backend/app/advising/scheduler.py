@@ -28,6 +28,8 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from ..knowledge import catalog as cat
+from ..structured.offerings import compute_offerings
+from ..structured.schedule import load_sections
 from ..tracing import span
 from .audit import AuditResult, _year_of, course_hours
 from .factcheck import CONFLICT, FactCheckReport
@@ -93,6 +95,7 @@ class Recommendation:
     kind: str                         # required | elective | eligible
     requirement: str
     group: str = ""                   # requirement/pool id it counts toward
+    offering: str = ""                # "usually offered in Fall (4 of 4 Falls, ...)" when known
     reasons: list[str] = field(default_factory=list)
     score: float = 0.0
     conditions: list[str] = field(default_factory=list)
@@ -218,6 +221,12 @@ class _Planner:
                  report: FactCheckReport):
         self.profile, self.research, self.audit, self.report = profile, research, audit, report
         self.interests = interest_terms(profile)
+        # Offering history and the planned term's sections, when schedule data is loaded.
+        self.offerings = compute_offerings()
+        planned = profile.planned_term
+        term_sections = [s for s in load_sections() if s.term == planned]
+        self.planned_term = planned
+        self.term_courses = {s.course for s in term_sections} if term_sections else None
         self.seq_pos: dict[str, tuple[int, int]] = {}
         for tp in research.sequence:
             y = _year_of(tp.year)
@@ -296,7 +305,8 @@ class _Planner:
         return score, reasons
 
     def plan_term(self, done: set[str], pools_left: dict[str, int], term: tuple[int, int],
-                  detailed: bool) -> tuple[list[Recommendation], list[dict]]:
+                  detailed: bool, season: str | None = None) -> tuple[list[Recommendation], list[dict]]:
+        season = season or TERMS[term[1]]
         cands = self.candidates(done, pools_left)
         targets = {c.code for c in cands if c.kind == "required"} or {c.code for c in cands}
         scored, deferred = [], []
@@ -305,6 +315,15 @@ class _Planner:
             if cand.code in seen:
                 continue
             seen.add(cand.code)
+            off = self.offerings.get(cand.code)
+            if off and off.not_usually_offered(season):
+                deferred.append({"code": cand.code, "reason": f"not usually offered in {season}: "
+                                 f"{off.label()}"})
+                continue
+            if detailed and self.term_courses is not None and cand.code not in self.term_courses:
+                deferred.append({"code": cand.code,
+                                 "reason": f"no sections listed for {self.planned_term}"})
+                continue
             ok, missing, conditions = prereq_status(cand.code, done, self.research)
             if not ok:
                 deferred.append({"code": cand.code, "reason": "needs " + "; ".join(
@@ -334,9 +353,10 @@ class _Planner:
                                      f"{upper} upper-division courses this term"})
                     continue
                 upper += 1
+            off = self.offerings.get(cand.code)
             rec = Recommendation(code=cand.code, title=self.title(cand.code), hours=h,
                                  kind=cand.kind, requirement=cand.requirement, group=cand.group,
-                                 reasons=reasons,
+                                 reasons=reasons, offering=off.label() if off else "",
                                  score=score, conditions=conditions, conflict=cand.conflict)
             if detailed:
                 if cand.conflict:
@@ -356,19 +376,26 @@ def _next_term(year: int, term: int) -> tuple[int, int]:
     return (year, 1) if term == 0 else (year + 1, 0)
 
 
+def _next_label(term: str) -> str:
+    """'Fall 2026' -> 'Spring 2027'; 'Spring 2027' or 'Summer 2027' -> 'Fall 2027' (summers skipped)."""
+    season, year = term.split()
+    return f"Spring {int(year) + 1}" if season == "Fall" else f"Fall {year}"
+
+
 def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: AuditResult,
                   report: FactCheckReport) -> SchedulePlan:
     with span("agent.scheduler") as s:
         planner = _Planner(profile, research, audit, report)
         mode = "degree" if audit.available else "prerequisites_only"
-        plan = SchedulePlan(term=profile.semester, mode=mode, target_credits=profile.target_credits)
+        plan = SchedulePlan(term=profile.planned_term, mode=mode, target_credits=profile.target_credits)
         done = set(profile.planning_completed)
         # A pool without an hour count ("Select one of the following") needs one course.
         pools_left = {p.id: p.hours_left if p.hours_required else (0 if p.satisfied_by else 1)
                       for p in audit.pools}
         term = (profile.year_index, TERMS.index(profile.semester) if profile.semester != "Summer" else 1)
 
-        plan.courses, plan.deferred = planner.plan_term(done, pools_left, term, detailed=True)
+        plan.courses, plan.deferred = planner.plan_term(done, pools_left, term, detailed=True,
+                                                        season=profile.semester)
         if not plan.courses:
             plan.warnings.append("No eligible courses were found for this term; check prerequisites "
                                  "with your advisor.")
@@ -385,12 +412,12 @@ def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: Audi
         # Roadmap: repeat the planner on future terms, assuming each pick is passed.
         if mode == "degree":
             done_sim, left = set(done), dict(pools_left)
-            t, label_term = term, profile.semester
+            t, label = term, profile.planned_term
             for i in range(MAX_ROADMAP_TERMS):
-                picks = plan.courses if i == 0 else planner.plan_term(done_sim, left, t, False)[0]
+                picks = (plan.courses if i == 0 else
+                         planner.plan_term(done_sim, left, t, False, season=label.split()[0])[0])
                 if not picks:
                     break
-                label = f"{label_term} (year {t[0]})"
                 plan.roadmap.append({"term": label, "courses": [p.code for p in picks],
                                      "hours": sum(p.hours for p in picks)})
                 for p in picks:
@@ -398,7 +425,7 @@ def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: Audi
                     if p.kind == "elective":
                         left[p.group] = left.get(p.group, 0) - p.hours
                 t = _next_term(*t)
-                label_term = TERMS[t[1]]
+                label = _next_label(label)
             still = [r.label() for r in research.requirements
                      if not any(o in done_sim for o in r.options)]
             if still:

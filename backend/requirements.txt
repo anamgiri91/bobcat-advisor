@@ -26,3 +26,7 @@ python-dotenv==1.0.1
 
 # Knowledge base: text from PDF syllabi (pure Python, no native deps)
 pypdf==5.1.0
+
+# Timetable builder: CP-SAT solver. Imported only when a timetable is
+# requested (~85MB RSS); TIMETABLE_SOLVER=search avoids it entirely.
+ortools==9.15.6755

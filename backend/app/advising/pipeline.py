@@ -20,6 +20,9 @@ The course-recommendation pipeline: seven agents, one event stream.
     ┌────▼─────┐  eligibility (both sources), priority, interests,
     │Scheduler │  workload balance, multi-term roadmap
     └────┬─────┘
+    ┌────▼─────┐  clash-free weekly timetables from the class schedule
+    │Timetable │  (OR-Tools CP-SAT; busy times, preferred days, modality)
+    └────┬─────┘
     ┌────▼─────┐
     │ Advisor  │  streamed, cited advising memo (template fallback)
     └────┬─────┘
@@ -39,6 +42,7 @@ Events (SSE wire format, see routers/advise.py):
   factcheck     the fact-check report
   audit         the degree audit
   schedule      the recommended schedule + roadmap
+  timetable     timetable options for the recommended courses (if sections are loaded)
   sources       numbered evidence the memo cites
   token         streamed memo text
   verification  verifier output
@@ -57,6 +61,8 @@ from concurrent.futures import ThreadPoolExecutor
 from ..agents.verifier import check_citations, revise, verify_claims
 from ..config import settings
 from ..guardrails import redact_pii
+from ..structured.schedule import terms as schedule_terms
+from ..structured.timetable import Preferences, TimetableResult, build_timetable
 from ..tracing import current_trace, span
 from .advisor import advise_stream, build_evidence, extractive_memo
 from .audit import audit as run_audit
@@ -66,7 +72,8 @@ from .research import ResearchResult, research
 from .scheduler import plan_schedule
 from .web import Browser
 
-AGENTS = ["intake", "researcher", "fact_checker", "auditor", "scheduler", "advisor", "verifier"]
+AGENTS = ["intake", "researcher", "fact_checker", "auditor", "scheduler", "timetable", "advisor",
+          "verifier"]
 _pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="advise")
 
 
@@ -148,8 +155,22 @@ def run(raw: dict) -> Iterator[dict]:
     yield {"type": "agent", "agent": "scheduler", "status": "done", "ms": elapsed(),
            "summary": f"{len(plan.courses)} courses, {plan.total_hours} hrs"}
 
+    # -- timetable --------------------------------------------------------
+    timetable: TimetableResult | None = None
+    yield {"type": "agent", "agent": "timetable", "status": "start"}
+    if plan.courses and profile.planned_term in schedule_terms():
+        prefs = Preferences.from_raw({
+            "preferred_days": profile.preferred_days, "earliest_start": profile.earliest_start,
+            "latest_end": profile.latest_end, "busy": profile.busy, "modality": profile.modality})
+        timetable = build_timetable([c.code for c in plan.courses], profile.planned_term, prefs)
+        yield {"type": "timetable", "timetable": timetable.to_dict(), "preferences": prefs.describe()}
+        summary = (f"{len(timetable.options)} option(s)" if timetable.options else "no clash-free option")
+    else:
+        summary = f"no section data for {profile.planned_term}"
+    yield {"type": "agent", "agent": "timetable", "status": "done", "ms": elapsed(), "summary": summary}
+
     # -- advisor ----------------------------------------------------------
-    evidence = build_evidence(profile, flags, verified, report, degree_audit, plan)
+    evidence = build_evidence(profile, flags, verified, report, degree_audit, plan, timetable)
     sources = [e.to_public() for e in evidence]
     yield {"type": "sources", "sources": sources}
     yield {"type": "agent", "agent": "advisor", "status": "start"}
@@ -197,6 +218,7 @@ def run(raw: dict) -> Iterator[dict]:
         "profile": profile.to_dict(), "flags": flags,
         "research": verified.to_dict(), "factcheck": report.to_dict(),
         "audit": degree_audit.to_dict(), "schedule": plan.to_dict(),
+        "timetable": timetable.to_dict() if timetable else None,
         "visits": [v.to_dict() for v in browser.visits], "verification": verification,
     }
 

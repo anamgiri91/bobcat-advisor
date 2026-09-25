@@ -28,6 +28,10 @@ them. Not affiliated with Texas State University.
   only, split at headings, tagged with URL, catalog year and fetch date,
   instructor details removed from syllabi, deadlines stored as dated
   facts, refreshed by a weekly workflow (see below).
+- **Class schedule and timetables.** Sections live in a structured store
+  (not the search index); an OR-Tools CP-SAT solver builds clash-free
+  weekly timetables around work hours and preferred days, and the Advisor
+  learns which terms each course is usually offered in.
 - **Hybrid retrieval.** Dense (MiniLM, ONNX) + BM25 over the catalog, fused
   with RRF, course filters with relaxation, and optional cross-encoder
   reranking.
@@ -151,6 +155,45 @@ The sources' seed URLs are starting points: pages are found by following
 links, so a moved page is still discovered. Check the crawl report after
 the first run and adjust `sources.json` if a source finds no pages.
 
+## Class schedule and timetable builder
+
+Tables belong in structured stores that tools query, not in the search
+index. `backend/app/structured/` holds the class schedule:
+
+- **Sections table** (`data/schedule_sections.jsonl`): term, course,
+  section, CRN, meeting days/times, seats, modality, campus. The parser maps
+  columns by header name (CRN, Days, Time, Cap/Act/Rem, ...), so it reads
+  most HTML schedule tables and CSV exports; lab rows without a CRN become
+  extra meetings of the section above. **Instructor columns are never
+  stored.**
+- **Offering history** (`data/course_offerings.json`): from every stored
+  term, "usually offered in Fall (4 of 4 Falls, 0 of 4 Springs)". Shown as
+  "usually", never a guarantee, and it only constrains a plan when a season
+  was observed at least twice with the course never offered in it. A term
+  only counts for subjects it actually has data for.
+- **Timetable builder** (`timetable.py`): OR-Tools CP-SAT. Hard: one section
+  per course, no clashes, busy blocks, earliest/latest times, modality,
+  full sections excluded. Soft: days outside the preferred days, then days
+  on campus. Returns up to 3 options and explains any course it can't place.
+  An exact fallback search gives the same optimum (cross-checked in tests)
+  when `TIMETABLE_SOLVER=search`, which avoids OR-Tools' ~85MB of memory.
+
+In the Advisor, the planner skips courses history says aren't offered that
+season (and, when the planned term is loaded, courses with no sections
+listed), labels the roadmap with real terms ("Spring 2027"), and the new
+timetable step lays out the recommended courses on a weekly grid.
+
+```bash
+cd backend
+python -m app.structured.build --import-csv fall.csv --term "Fall 2026"   # load an export
+python -m app.structured.build                                          # fetch configured terms
+```
+
+TXST's schedule site hasn't been checked yet (it may need a form POST or an
+API rather than page fetches), so `app/structured/sources.json` ships with no
+URL: fetching is a no-op until one is configured, and CSV/HTML import works
+now. The weekly refresh workflow runs the fetch alongside the knowledge base.
+
 ## Results
 
 | | Score |
@@ -243,7 +286,7 @@ Add to your MCP client config:
     "args": ["/abs/path/backend/mcp_server.py"] } } }
 ```
 
-Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_courses`, `ask_advisor`,
+Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_courses`, `build_timetable`, `ask_advisor`,
 `recommend_courses`.
 
 ## API
@@ -260,6 +303,10 @@ Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_cour
 | POST | `/api/plan` | `{"completed": [...]}` → eligible courses |
 | POST | `/api/advise` | Profile (`major`, `year`, `completed`, `in_progress`, `interests`, `target_credits`, …) → schedule, degree audit, fact-check report, roadmap, advising notes |
 | POST | `/api/advise/stream` | Same, as Server-Sent Events (`agent`, `profile`, `browse`, `research`, `factcheck`, `audit`, `schedule`, `sources`, `token`, `verification`, `revision`, `done`) |
+| GET | `/api/schedule/terms` | Terms with section data |
+| GET | `/api/schedule/sections?course=&term=` | Sections for a course (no instructor data) |
+| GET | `/api/offerings/{code}` | "Usually offered in …" with counts |
+| POST | `/api/timetable` | `{term, courses, preferred_days, earliest_start, latest_end, busy, modality}` → clash-free timetables |
 | GET | `/api/health` | Index readiness, LLM availability |
 
 ## Deployment (Render)
@@ -272,7 +319,9 @@ run on boot (`scripts/start.sh`). Deploy `/frontend` as a static site with
 `VITE_API_BASE_URL` pointing at the backend.
 
 Memory: the API peaks around 340–390MB. The reranker adds about 100MB, so it's
-off on the 512MB free plan (`RERANKER_ENABLED`).
+off on the 512MB free plan (`RERANKER_ENABLED`). OR-Tools adds ~85MB the
+first time a timetable is built; set `TIMETABLE_SOLVER=search` on the free
+plan if memory is tight.
 
 ## Project history
 

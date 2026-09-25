@@ -26,6 +26,7 @@ from .. import llm
 from ..agents.state import Evidence
 from ..agents.synthesizer import normalise_citations
 from ..guardrails import neutralise_evidence
+from ..structured.timetable import TimetableResult
 from .audit import AuditResult
 from .factcheck import CONFLICT, UNVERIFIED, FactCheckReport
 from .profile import StudentProfile
@@ -52,7 +53,10 @@ STRUCTURE (use these bold headings, short paragraphs and "- " bullets, no tables
 unlocks, interests). Never name or rate individual instructors.
 **Watch out for** — conflicts, conditions to check, flags from intake, workload notes. Skip if \
 there are none.
-**Looking ahead** — two or three sentences from the roadmap, tied to their goals.
+**Your week** — only if TIMETABLE evidence exists: the best option's sections and days, and \
+any course that couldn't be placed and why. Say sections and seats can change before registration.
+**Looking ahead** — two or three sentences from the roadmap, tied to their goals. If a course \
+has offering history, say it is "usually offered" in those terms, never that it is guaranteed.
 End with one sentence reminding them to confirm the plan in their official degree audit before \
 registering.
 
@@ -60,8 +64,8 @@ STYLE: warm, direct, specific; under about 350 words."""
 
 
 def build_evidence(profile: StudentProfile, flags: list[str], research: ResearchResult,
-                   report: FactCheckReport, audit: AuditResult, plan: SchedulePlan
-                   ) -> list[Evidence]:
+                   report: FactCheckReport, audit: AuditResult, plan: SchedulePlan,
+                   timetable: TimetableResult | None = None) -> list[Evidence]:
     ev: list[Evidence] = []
 
     def add(kind: str, label: str, text: str, agent: str, **meta) -> None:
@@ -100,6 +104,8 @@ def build_evidence(profile: StudentProfile, flags: list[str], research: Research
     for c in plan.courses:
         line = (f"{c.code} {c.title}: {c.hours} credit hours; recommended for {plan.term} "
                 f"as a {c.kind} course ({c.requirement}). Reasons: {'; '.join(c.reasons) or 'eligible'}.")
+        if c.offering:
+            line += f" Offering history: {c.offering}."
         if c.conditions:
             line += " Check: " + "; ".join(c.conditions) + "."
         add("schedule", f"Schedule planner — {c.code}", line, "scheduler", course=c.code)
@@ -116,6 +122,16 @@ def build_evidence(profile: StudentProfile, flags: list[str], research: Research
     other += [f"Warning: {w}" for w in plan.warnings]
     add("schedule", "Schedule planner — load, deferrals and warnings", "\n".join(other), "scheduler")
     add("roadmap", "Schedule planner — roadmap", plan.roadmap_text(), "scheduler")
+
+    if timetable is not None:
+        lines = [f"TIMETABLE for {timetable.term} (computed by the timetable builder from the class "
+                 "schedule; no time clashes):"]
+        for i, o in enumerate(timetable.options[:2], 1):
+            lines.append(f"- Option {i} (on campus {o.days or 'no set days'}): {o.to_text()}")
+        lines += [f"- Couldn't place {u['course']}: {u['reason']}" for u in timetable.unplaced]
+        if timetable.note:
+            lines.append(f"- Note: {timetable.note}")
+        add("timetable", f"Timetable builder — {timetable.term}", "\n".join(lines), "timetable")
 
     for i, e in enumerate(ev, 1):
         e.n = i
@@ -170,6 +186,10 @@ def extractive_memo(profile: StudentProfile, flags: list[str], evidence: list[Ev
     watch += [f"- {w} [{warn_n}]." for w in plan.warnings]
     if watch:
         out += ["", "**Watch out for**", *watch]
+    tt_label = next((label for label in n if label.startswith("Timetable builder")), None)
+    if tt_label:
+        tt = next(e for e in evidence if e.label == tt_label)
+        out += ["", "**Your week**"] + [f"{line} [{n[tt_label]}]" for line in tt.text.splitlines()[1:]]
     if plan.roadmap:
         rm_n = n["Schedule planner — roadmap"]
         out += ["", "**Looking ahead**",
