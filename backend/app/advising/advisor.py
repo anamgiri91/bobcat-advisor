@@ -165,7 +165,7 @@ def extractive_memo(profile: StudentProfile, flags: list[str], evidence: list[Ev
     out = ["_AI write-up is unavailable right now — here are the agents' findings directly._", "",
            "**Where you stand**"]
     if audit.available:
-        c = audit.to_dict()["counts"]
+        c = audit.counts()
         line = (f"You've completed {c['done']} of the {len(audit.requirements)} named requirements "
                 f"on the {audit.program} page, with {c['in_progress']} in progress")
         if audit.hours_remaining is not None:

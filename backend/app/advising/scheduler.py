@@ -193,14 +193,7 @@ def prereq_status(code: str, done: set[str], research: ResearchResult
 
 def _unlock_count(code: str, targets: set[str]) -> int:
     """How many target courses have `code` somewhere in their prerequisite chain."""
-    count, frontier, seen = 0, [code], {code}
-    while frontier:
-        for nxt in cat.unlocks(frontier.pop()):
-            if nxt not in seen:
-                seen.add(nxt)
-                frontier.append(nxt)
-                count += nxt in targets
-    return count
+    return len(cat.descendants(code) & targets)
 
 
 # ---------------------------------------------------------------------------

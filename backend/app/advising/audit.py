@@ -82,21 +82,24 @@ class AuditResult:
     def remaining(self) -> list[RequirementStatus]:
         return [r for r in self.requirements if r.status == "remaining"]
 
-    def to_dict(self) -> dict:
-        d = asdict(self)
-        d["pools"] = [{**asdict(p), "hours_left": p.hours_left} for p in self.pools]
-        d["counts"] = {
+    def counts(self) -> dict:
+        return {
             "done": sum(r.status == "done" for r in self.requirements),
             "in_progress": sum(r.status == "in_progress" for r in self.requirements),
             "remaining": len(self.remaining),
         }
+
+    def to_dict(self) -> dict:
+        d = asdict(self)
+        d["pools"] = [{**asdict(p), "hours_left": p.hours_left} for p in self.pools]
+        d["counts"] = self.counts()
         return d
 
     def to_text(self) -> str:
         if not self.available:
             return ("DEGREE AUDIT: unavailable — no verified degree requirements. "
                     f"Estimated hours completed: {self.hours_completed}.")
-        c = self.to_dict()["counts"]
+        c = self.counts()
         lines = [f"DEGREE AUDIT for {self.program} ({self.catalog_year or 'catalog year unknown'}), "
                  "computed from the fact-checked requirements:",
                  f"- Named requirements: {c['done']} done, {c['in_progress']} in progress, "

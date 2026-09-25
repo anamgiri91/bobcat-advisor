@@ -57,6 +57,7 @@ import queue
 import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict
 
 from ..agents.verifier import check_citations, revise, verify_claims
 from ..config import settings
@@ -123,7 +124,8 @@ def run(raw: dict) -> Iterator[dict]:
             found = ev["result"]
         else:
             yield ev
-    yield {"type": "research", "program": found.to_dict()["program"], "method": found.method,
+    yield {"type": "research", "program": asdict(found.program) if found.program else None,
+           "method": found.method,
            "requirements": len(found.requirements), "pools": len(found.pools),
            "sequence_terms": len(found.sequence), "courses": sorted(found.courses),
            "errors": found.errors}
@@ -134,7 +136,8 @@ def run(raw: dict) -> Iterator[dict]:
     # -- fact check -------------------------------------------------------
     yield {"type": "agent", "agent": "fact_checker", "status": "start"}
     report, verified = fact_check(found, profile, browser.pages)
-    yield {"type": "factcheck", **report.to_dict()}
+    report_d = report.to_dict()
+    yield {"type": "factcheck", **report_d}
     s = report.summary
     yield {"type": "agent", "agent": "fact_checker", "status": "done", "ms": elapsed(),
            "summary": f"{s['verified']} verified, {s['conflicts']} conflicts, "
@@ -143,7 +146,8 @@ def run(raw: dict) -> Iterator[dict]:
     # -- audit ------------------------------------------------------------
     yield {"type": "agent", "agent": "auditor", "status": "start"}
     degree_audit = run_audit(profile, verified, report)
-    yield {"type": "audit", "audit": degree_audit.to_dict()}
+    audit_d = degree_audit.to_dict()
+    yield {"type": "audit", "audit": audit_d}
     yield {"type": "agent", "agent": "auditor", "status": "done", "ms": elapsed(),
            "summary": (f"{len(degree_audit.remaining)} requirements remaining"
                        if degree_audit.available else "requirements unavailable")}
@@ -151,19 +155,22 @@ def run(raw: dict) -> Iterator[dict]:
     # -- schedule ---------------------------------------------------------
     yield {"type": "agent", "agent": "scheduler", "status": "start"}
     plan = plan_schedule(profile, verified, degree_audit, report)
-    yield {"type": "schedule", "schedule": plan.to_dict()}
+    plan_d = plan.to_dict()
+    yield {"type": "schedule", "schedule": plan_d}
     yield {"type": "agent", "agent": "scheduler", "status": "done", "ms": elapsed(),
            "summary": f"{len(plan.courses)} courses, {plan.total_hours} hrs"}
 
     # -- timetable --------------------------------------------------------
     timetable: TimetableResult | None = None
+    timetable_d = None
     yield {"type": "agent", "agent": "timetable", "status": "start"}
     if plan.courses and profile.planned_term in schedule_terms():
         prefs = Preferences.from_raw({
             "preferred_days": profile.preferred_days, "earliest_start": profile.earliest_start,
             "latest_end": profile.latest_end, "busy": profile.busy, "modality": profile.modality})
         timetable = build_timetable([c.code for c in plan.courses], profile.planned_term, prefs)
-        yield {"type": "timetable", "timetable": timetable.to_dict(), "preferences": prefs.describe()}
+        timetable_d = timetable.to_dict()
+        yield {"type": "timetable", "timetable": timetable_d, "preferences": prefs.describe()}
         summary = (f"{len(timetable.options)} option(s)" if timetable.options else "no clash-free option")
     else:
         summary = f"no section data for {profile.planned_term}"
@@ -216,9 +223,8 @@ def run(raw: dict) -> Iterator[dict]:
     yield {
         "type": "done", "answer": final, "mode": mode, "sources": sources,
         "profile": profile.to_dict(), "flags": flags,
-        "research": verified.to_dict(), "factcheck": report.to_dict(),
-        "audit": degree_audit.to_dict(), "schedule": plan.to_dict(),
-        "timetable": timetable.to_dict() if timetable else None,
+        "research": verified.to_dict(), "factcheck": report_d,
+        "audit": audit_d, "schedule": plan_d, "timetable": timetable_d,
         "visits": [v.to_dict() for v in browser.visits], "verification": verification,
     }
 
