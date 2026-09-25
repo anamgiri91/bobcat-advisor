@@ -10,7 +10,7 @@ Runs the multi-agent pipeline for one question and yields events as it goes.
     └─────┬──────┘
           │  intent picks specialists (state.AGENTS_FOR_INTENT)
     ┌─────▼─────────────────────────────┐
-    │ catalog │ search │ planner  (parallel) │  tools only, no LLM
+    │ catalog │ search │ kb │ calendar │ planner │  tools only, no LLM
     └─────┬─────────────────────────────┘
           │  evidence, numbered [1..n]
     ┌─────▼──────┐
@@ -56,9 +56,9 @@ from .verifier import check_citations, revise, verify_claims
 MAX_EVIDENCE = 16
 _pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="agent")
 
-# Order evidence so computed facts (eligibility, prerequisite graph) come
-# before catalog text.
-_KIND_ORDER = {"plan": 0, "prereq": 1, "catalog": 2}
+# Computed facts (calendar dates, eligibility, prerequisite graph) come first;
+# page text keeps the agents' order and each agent's relevance order.
+_KIND_ORDER = {"dates": 0, "plan": 1, "prereq": 2}
 
 
 def _canned_answer(plan: QueryPlan, question: str) -> str | None:
@@ -119,7 +119,7 @@ def run(question: str, history: list[dict] | None = None,
     # Deduplicate identical chunks returned by two agents, order, cap, number.
     seen: set[str] = set()
     unique = []
-    for e in sorted(evidence, key=lambda e: _KIND_ORDER.get(e.kind, 9)):
+    for e in sorted(evidence, key=lambda e: _KIND_ORDER.get(e.kind, 3)):
         key = e.chunk_id or e.label + e.text[:50]
         if key not in seen:
             seen.add(key)

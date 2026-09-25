@@ -12,48 +12,149 @@ deterministic, and unit-testable — and it means that everything the
 synthesizer cites came from a tool, not from a model.
 
   catalog   course descriptions and the prerequisite graph
-  search    hybrid search over the catalog, for questions that describe a
-            topic rather than name a course ("which course covers compilers?")
+  search    hybrid search over the catalog and course syllabi, for
+            questions that describe a topic ("which course covers
+            compilers?") or ask what a named course's syllabus says
+  kb        hybrid search over the knowledge base: academic rules, core
+            curriculum, graduate catalog, CS department, registrar and
+            student handbook pages (app/kb)
+  calendar  dated facts from the academic calendar, marked past/upcoming
   planner   eligibility from the prerequisite graph
 """
 
 from __future__ import annotations
 
+import datetime as dt
+
+from ..config import settings
+from ..kb import calendar
+from ..kb.sources import KB_KINDS, KIND_NAMES
 from ..knowledge import catalog as cat
 from ..rag.index import RetrievedChunk, SearchFilters, get_index
 from ..tracing import span
 from .state import AgentResult, Evidence, QueryPlan
 
+# Searched for policy questions. Catalog entries (e.g. the internship and
+# research courses) are searched separately so they can't crowd out policy
+# pages; syllabi are searched per course.
+POLICY_KINDS = [k for k in KB_KINDS if k != "syllabus"]
+
 
 def source_label(meta: dict) -> str:
     """Programmatic citation label — built from metadata, never by the LLM."""
-    return f"TXST Course Catalog — {meta.get('course') or 'unknown course'}"
+    kind = meta.get("chunk_type", "catalog")
+    if kind == "catalog":
+        return f"TXST Course Catalog — {meta.get('course') or 'unknown course'}"
+    name = KIND_NAMES.get(kind, "TXST")
+    where = meta.get("section_path") or meta.get("heading") or meta.get("title") or ""
+    if kind == "syllabus" and meta.get("course"):
+        name = f"{name} — {meta['course']}"
+    when = (f"{meta['catalog_year']} catalog" if meta.get("catalog_year")
+            else f"fetched {meta.get('fetched_at', 'unknown date')}")
+    return f"{name} — {where} ({when})" if where else f"{name} ({when})"
 
 
 def _chunk_evidence(chunk: RetrievedChunk, agent: str) -> Evidence:
     meta = chunk["metadata"]
     return Evidence(
-        kind="catalog",
+        kind=meta.get("chunk_type", "catalog"),
         text=chunk["text"],
         label=source_label(meta),
         agent=agent,
         chunk_id=chunk["id"],
-        metadata={"course": meta.get("course"), "scores": chunk.get("scores", {})},
+        metadata={"course": meta.get("course"), "url": meta.get("url"),
+                  "fetched_at": meta.get("fetched_at"), "scores": chunk.get("scores", {})},
     )
 
 
+def _fresh(chunks: list[RetrievedChunk], today: dt.date | None = None) -> tuple[list[RetrievedChunk], int]:
+    """Drop knowledge-base chunks fetched longer ago than KB_MAX_AGE_DAYS."""
+    today = today or dt.date.today()
+    keep, stale = [], 0
+    for c in chunks:
+        fetched = c["metadata"].get("fetched_at")
+        if fetched and (today - dt.date.fromisoformat(fetched)).days > settings.KB_MAX_AGE_DAYS:
+            stale += 1
+            continue
+        keep.append(c)
+    return keep, stale
+
+
+def _stale_note(stale: int) -> list[str]:
+    return ([f"{stale} matching page(s) were skipped because they were fetched more than "
+             f"{settings.KB_MAX_AGE_DAYS} days ago; tell the student to check the official page."]
+            if stale else [])
+
+
 # ---------------------------------------------------------------------------
-# Search agent
+# Search agent (catalog + syllabi)
 # ---------------------------------------------------------------------------
 
 def run_search(plan: QueryPlan, source_filter: str | None = None, k: int = 4) -> AgentResult:
-    """Catalog entries relevant to the question, beyond any course it names."""
+    """Catalog entries relevant to the question, plus syllabus sections of named courses."""
     with span("agent.search", intent=plan.intent) as s:
-        chunks = get_index().search(plan.standalone_question, k=k,
-                                    filters=SearchFilters(chunk_types=["catalog"]))
-        s.attributes["chunks"] = len(chunks)
-        return AgentResult(agent="search", evidence=[_chunk_evidence(c, "search") for c in chunks],
-                           data={"chunks": len(chunks)})
+        ix = get_index()
+        q = plan.standalone_question
+        chunks = ix.search(q, k=k, filters=SearchFilters(chunk_types=["catalog"]))
+        if plan.courses:
+            syl = ix.search(q, k=3, filters=SearchFilters(courses=plan.courses,
+                                                          chunk_types=["syllabus"]), min_results=0)
+        else:
+            syl = ix.search(q, k=2, filters=SearchFilters(chunk_types=["syllabus"]))
+        syl, stale = _fresh(syl)
+        s.attributes.update(chunks=len(chunks), syllabus=len(syl))
+        evidence = [_chunk_evidence(c, "search") for c in chunks + syl]
+        return AgentResult(agent="search", evidence=evidence, notes=_stale_note(stale),
+                           data={"chunks": len(chunks), "syllabus_sections": len(syl)})
+
+
+# ---------------------------------------------------------------------------
+# Knowledge-base agent (rules, procedures, programs)
+# ---------------------------------------------------------------------------
+
+def run_kb(plan: QueryPlan, source_filter: str | None = None, k: int = 6) -> AgentResult:
+    with span("agent.kb", intent=plan.intent) as s:
+        ix = get_index()
+        q = plan.standalone_question
+        chunks = ix.search(q, k=k, filters=SearchFilters(chunk_types=POLICY_KINDS))
+        chunks += ix.search(q, k=2, filters=SearchFilters(chunk_types=["catalog"]))
+        if plan.courses:  # "Can I use AI in CS3358?" -> that course's syllabus too
+            chunks += ix.search(q, k=2, filters=SearchFilters(courses=plan.courses,
+                                                              chunk_types=["syllabus"]), min_results=0)
+        chunks, stale = _fresh(chunks)
+        notes = _stale_note(stale)
+        if not chunks:
+            notes.append("No official policy pages matched. Say so and point the student to the "
+                         "TXST catalog, registrar or their academic advisor.")
+        s.attributes.update(chunks=len(chunks), stale=stale)
+        return AgentResult(agent="kb", evidence=[_chunk_evidence(c, "kb") for c in chunks],
+                           notes=notes, data={"chunks": len(chunks)})
+
+
+# ---------------------------------------------------------------------------
+# Calendar agent (dated facts)
+# ---------------------------------------------------------------------------
+
+def run_calendar(plan: QueryPlan, source_filter: str | None = None,
+                 today: dt.date | None = None) -> AgentResult:
+    with span("agent.calendar") as s:
+        today = today or dt.date.today()
+        facts = calendar.lookup(plan.standalone_question, today=today)
+        s.attributes["facts"] = len(facts)
+        if not facts:
+            return AgentResult(agent="calendar")
+        lines = [f"ACADEMIC CALENDAR FACTS (today is {today.isoformat()}; computed from the "
+                 "registrar's published calendar):"]
+        for f in facts:
+            when = (f"in {f['days_from_today']} days" if f["status"] == "upcoming"
+                    else f"{-f['days_from_today']} days ago")
+            lines.append(f"- {f['event']}: {f['date']}" + (f" ({f['term']})" if f["term"] else "")
+                         + f" — {f['status'].upper()}, {when}")
+        fetched = max(f["fetched_at"] for f in facts)
+        return AgentResult(agent="calendar", evidence=[Evidence(
+            kind="dates", text="\n".join(lines),
+            label=f"TXST Registrar — academic calendar (fetched {fetched})", agent="calendar",
+            metadata={"url": facts[0]["url"]})], data={"facts": facts})
 
 
 # ---------------------------------------------------------------------------
@@ -164,5 +265,7 @@ def run_planner(plan: QueryPlan, source_filter: str | None = None) -> AgentResul
 SPECIALISTS = {
     "catalog": run_catalog,
     "search": run_search,
+    "kb": run_kb,
+    "calendar": run_calendar,
     "planner": run_planner,
 }

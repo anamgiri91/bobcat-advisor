@@ -23,3 +23,6 @@ httpx==0.28.1
 
 # Environment variables
 python-dotenv==1.0.1
+
+# Knowledge base: text from PDF syllabi (pure Python, no native deps)
+pypdf==5.1.0

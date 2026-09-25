@@ -1,5 +1,5 @@
 {
-  "_comment": "Minimum scores for the offline eval suites, enforced in CI by tests/test_eval_gate.py. Set a little below measured values (see docs/EVALUATION.md) so regressions fail and intended improvements can raise the bar. Holdout is scored with rules the golden set never tuned. retrieval_hybrid floors are provisional: they were set from the BM25 measurement because the embedding model couldn't be downloaded when the catalog-only index was built; raise them after the first CI run.",
+  "_comment": "Minimum scores for the offline eval suites, enforced in CI by tests/test_eval_gate.py. Set a little below measured values (see docs/EVALUATION.md) so regressions fail and intended improvements can raise the bar. Holdout is scored with rules the golden set never tuned. retrieval_hybrid floors are provisional: they were set from the BM25 measurement because the embedding model couldn't be downloaded when the catalog-only index was built; raise them after the first CI run. router_holdout.intent_accuracy was lowered from 0.85 to 0.75 when 7 knowledge-base questions were added to the holdout set: the rules miss paraphrases (\"take it again\", \"when do spring classes start\") that the LLM router is for; they were not tuned on. kb floors apply once the knowledge base has been crawled; until then the gate skips.",
   "router_golden": {
     "intent_accuracy": 0.95,
     "course_recall": 0.95,
@@ -8,7 +8,7 @@
     "instructor_specificity": 1.0
   },
   "router_holdout": {
-    "intent_accuracy": 0.85,
+    "intent_accuracy": 0.75,
     "instructor_recall": 0.75,
     "instructor_specificity": 1.0
   },
@@ -23,5 +23,8 @@
   "retrieval_hybrid": {
     "hit_at_k": 0.9,
     "mrr": 0.8
+  },
+  "kb": {
+    "hit_at_k": 0.8
   }
 }

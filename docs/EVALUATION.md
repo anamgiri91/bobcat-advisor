@@ -22,8 +22,8 @@ instructor questions rather than how well it answers them.
 
 | File | Cases | Purpose |
 |---|---|---|
-| `evals/golden.jsonl` | 63 | Development set: 8 course, 17 topic search, 5 course comparison, 8 prerequisite, 5 planning, 10 instructor (must decline), 4 off-topic, 3 adversarial, 3 follow-up |
-| `evals/holdout.jsonl` | 18 | Written after the rule router was finished and **never tuned against**. It's the honest number for routing. |
+| `evals/golden.jsonl` | 85 | Development set: 8 course, 17 topic search, 5 course comparison, 8 prerequisite, 5 planning, 10 instructor (must decline), 4 off-topic, 3 adversarial, 3 follow-up, 22 knowledge-base (7 academic rules, 4 registrar, 2 core, 3 department, 2 handbook, 1 graduate catalog, 3 syllabus) |
+| `evals/holdout.jsonl` | 25 | Written after the rule router was finished and **never tuned against**. It's the honest number for routing. |
 
 Instructor questions use made-up names ("Professor Smith", "Dr. Patel"),
 so the eval data names no real person.
@@ -40,8 +40,8 @@ as noise.
 
 | Set | Intent acc. | Course recall | Completed-courses exact | Instructor questions declined | Other questions wrongly declined |
 |---|---|---|---|---|---|
-| golden (tuned on) | 0.98 | 1.00 | 1.00 | 10/11 | 0/52 |
-| **holdout (not tuned on)** | **0.89** | 0.96 | 1.00 | 4/5 | 0/13 |
+| golden (tuned on) | 0.99 | 1.00 | 1.00 | 10/11 | 0/74 |
+| **holdout (not tuned on)** | **0.80** | 0.96 | 1.00 | 4/5 | 0/20 |
 
 The misses are instructor questions that name someone without "professor",
 "Dr." or similar ("Should I take CS2308 with Smith or with Garcia?",
@@ -81,6 +81,29 @@ keyword leg. Splitting letters from digits took hit@4 from 0.95 to 1.00.
 `evals/baseline.json` sets floors a little below the current numbers
 (instructor specificity is held at 1.0: no ordinary course question may be
 declined).
+
+### Knowledge base
+
+`--suite kb` routes each knowledge-base question (22 golden, 7 holdout, at
+least one per source) through the production agent and checks that a chunk
+of the expected source kind is in the top results, reported per source.
+Cases whose sources haven't been crawled are **skipped and listed**, never
+counted as passes, and the CI gate (`test_kb_retrieval`) skips until the
+first crawl. Run it after `python -m app.kb.build`, then set real floors in
+`baseline.json`.
+
+Routing for these questions (rules only): the golden set is at 0.99 overall.
+The held-out set fell to **0.80** when 7 knowledge-base questions were added:
+the rules miss paraphrases such as "take it again", "when do spring classes
+start" and "is ChatGPT allowed for homework" (routed to `course_info`,
+which searches the catalog and syllabi instead). They were not tuned on;
+this is the gap the LLM router covers. The floor was lowered from 0.85 to
+0.75 with a note in `baseline.json`.
+
+The pipeline itself is covered by `tests/test_kb.py` on fixture pages:
+section paths, chrome removal, PDF headings, people scrubbing (no names,
+emails, phones or office details survive), date/term inference, robots and
+scope rules, partial rebuilds, freshness, and the kb/search/calendar agents.
 
 ## End-to-end (LLM) suite
 

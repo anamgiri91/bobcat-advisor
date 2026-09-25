@@ -9,6 +9,8 @@ Suites
              instructor-question detection                      (offline)
   retrieval  catalog search hit@k / MRR for topic questions, for each
              retrieval configuration                            (offline)
+  kb         knowledge-base questions: right source kind in the top k,
+             per source; skips sources not crawled yet          (offline)
   tools      prerequisite graph + planner eligibility correctness (offline)
   e2e        full pipeline: refusal correctness, forbidden phrases, citation
              coverage, verifier pass rate, LLM-judge faithfulness/relevance,
@@ -38,7 +40,7 @@ import time
 from pathlib import Path
 
 from app.agents.router import route_rules
-from app.agents.specialists import run_catalog, run_planner, run_search
+from app.agents.specialists import run_catalog, run_kb, run_planner, run_search
 from app.rag.index import get_index
 
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -137,9 +139,10 @@ def eval_retrieval(cases: list[dict], mode: str = "hybrid", rerank: bool = False
                 continue
             plan = route_rules(c["question"], c.get("history"))
             t0 = time.perf_counter()
-            result = run_search(plan, k=k)
+            # The agent production uses for this intent.
+            result = run_kb(plan, k=k) if plan.intent == "policy" else run_search(plan, k=k)
             latencies.append((time.perf_counter() - t0) * 1000)
-            got = [ev.metadata.get("course") for ev in result.evidence]
+            got = [ev.metadata.get("course") for ev in result.evidence[:k]]
             rank = next((i + 1 for i, code in enumerate(got) if code in want), None)
             rows.append({"id": c["id"], "hit": rank is not None,
                          "mrr": 1 / rank if rank else 0.0, "got": got})
@@ -154,6 +157,39 @@ def eval_retrieval(cases: list[dict], mode: str = "hybrid", rerank: bool = False
         "mrr": _mean([r["mrr"] for r in rows]),
         "latency_ms_p50": _pct(latencies, 0.5),
         "latency_ms_p95": _pct(latencies, 0.95),
+        "misses": [r for r in rows if not r["hit"]],
+    }
+
+
+def eval_kb_retrieval(cases: list[dict], k: int = 4) -> dict:
+    """Knowledge-base questions: is a chunk of the expected source kind in the
+    top k of the agent production uses? Cases whose kinds haven't been crawled
+    into the index yet are skipped (and counted), never scored as passes."""
+    ix = get_index()
+    present = {m.get("chunk_type") for m in ix.metas}
+    rows, skipped = [], []
+    for c in cases:
+        kinds = set(c["expect"].get("retrieve_kind") or [])
+        if not kinds:
+            continue
+        if not kinds & present:
+            skipped.append(c["id"])
+            continue
+        plan = route_rules(c["question"], c.get("history"))
+        result = run_kb(plan, k=k) if plan.intent == "policy" else run_search(plan, k=k)
+        got = [ev.kind for ev in result.evidence[:k + 2]]
+        rank = next((i + 1 for i, kind in enumerate(got) if kind in kinds), None)
+        rows.append({"id": c["id"], "category": c["category"], "hit": rank is not None,
+                     "mrr": 1 / rank if rank else 0.0, "got": got})
+    by_cat: dict[str, list[bool]] = {}
+    for r in rows:
+        by_cat.setdefault(r["category"], []).append(r["hit"])
+    return {
+        "n": len(rows),
+        "skipped_not_crawled": skipped,
+        "hit_at_k": _mean([r["hit"] for r in rows]),
+        "mrr": _mean([r["mrr"] for r in rows]),
+        "hit_by_source": {cat: _mean(v) for cat, v in sorted(by_cat.items())},
         "misses": [r for r in rows if not r["hit"]],
     }
 
@@ -310,7 +346,8 @@ def _print(name: str, data: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--suite", choices=["router", "retrieval", "tools", "e2e", "offline"], default="offline")
+    ap.add_argument("--suite", choices=["router", "retrieval", "kb", "tools", "e2e", "offline"],
+                    default="offline")
     ap.add_argument("--golden", type=Path, default=DEFAULT_GOLDEN)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--sample", type=int,
@@ -329,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
         from app.config import settings
         settings.LLM_MAX_RATE_LIMIT_WAIT_S = 65
     tag = "" if args.golden == DEFAULT_GOLDEN else f"_{args.golden.stem}"
-    suites = ["router", "retrieval", "tools"] if args.suite == "offline" else [args.suite]
+    suites = ["router", "retrieval", "kb", "tools"] if args.suite == "offline" else [args.suite]
 
     for suite in suites:
         if suite == "router":
@@ -349,6 +386,8 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             res = eval_retrieval(cases)
             name = f"retrieval{tag}"
+        elif suite == "kb":
+            res, name = eval_kb_retrieval(cases), f"kb{tag}"
         elif suite == "tools":
             res, name = eval_tools(cases), f"tools{tag}"
         else:

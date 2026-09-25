@@ -4,12 +4,15 @@
  */
 
 const AGENT_LABELS = {
-  search: "Searching the catalog",
+  search: "Searching the catalog and syllabi",
+  kb: "Searching official TXST pages",
+  calendar: "Checking the academic calendar",
   catalog: "Checking the catalog",
   planner: "Building your plan",
 };
 
 const INTENT_LABELS = {
+  policy: "Rules, deadlines and programs",
   instructor: "About an instructor (not answered)",
   compare: "Comparison",
   course_info: "Course question",

@@ -27,6 +27,7 @@ class Citation(BaseModel):
     label: str
     agent: str
     chunk_id: str | None = None
+    url: str | None = None
     snippet: str
 
 

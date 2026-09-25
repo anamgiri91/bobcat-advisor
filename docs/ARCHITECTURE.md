@@ -61,6 +61,7 @@ yields events, and the API streams those same events to the browser over SSE:
 | Knowledge | `app/knowledge/` | `catalog.py` prerequisite graph (CNF), `corpus.py` course registry. |
 | Ingestion | `app/rag/{chunker,cleaner,ingest,embed}.py` | Catalog entries → course normalisation → incremental embed (content-hash IDs). |
 | Advising | `app/advising/` | Seven-agent course-recommendation pipeline over the live TXST catalog (see README). |
+| Knowledge base | `app/kb/` | Crawler, heading-based sectioning (HTML + PDF), people scrubbing, dated-fact extraction and freshness for official TXST pages (see README). |
 | API | `app/routers/` | chat (JSON + SSE), advise (JSON + SSE), history, feedback, analytics (+ `/agents`), knowledge (courses, plan). |
 | MCP | `mcp_server.py` | The same tools exposed to any MCP client. |
 
@@ -78,6 +79,16 @@ from a deterministic tool: a catalog entry or a prerequisite-graph result.
 That's why eligibility in answers can be trusted and why the specialists are
 unit-testable and cost nothing to run. The LLM budget goes to the three
 places it adds value: understanding the question, writing, and checking.
+
+**Rules and dates come from official pages, with provenance.** The `policy`
+intent runs the `kb` agent (hybrid search over the knowledge base, plus
+catalog entries searched separately so they can't crowd out policy pages)
+and the `calendar` agent (dated facts, marked past/upcoming against today).
+Every chunk carries its URL, heading path, catalog year and fetch date;
+stale chunks are dropped before the synthesizer sees them, and the prompt
+requires naming the source and catalog year and pointing to the official
+page. Dates are stored as data because a paragraph can't say it describes
+last year: a fact with an ISO date and term can.
 
 **No data about people.** The app indexes only the official catalog. The
 router gives questions about a specific instructor the `instructor` intent,

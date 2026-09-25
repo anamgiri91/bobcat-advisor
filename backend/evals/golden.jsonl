@@ -21,7 +21,7 @@
 {"id": "t13", "category": "topic", "question": "Is there a class on data compression of speech and video?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS4372"]}}
 {"id": "t14", "category": "topic", "question": "Which course covers query languages and data models?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS4332"]}}
 {"id": "t15", "category": "topic", "question": "What course teaches instruction sets and addressing modes?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS2318"]}}
-{"id": "t16", "category": "topic", "question": "Can I get course credit for an industry internship?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS4100", "CS3190"]}}
+{"id": "t16", "category": "topic", "question": "Can I get course credit for an industry internship?", "expect": {"intent": "policy", "courses": [], "retrieve_any": ["CS4100", "CS3190"]}}
 {"id": "t17", "category": "topic", "question": "Is there a course on ethical codes for computing professionals?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS2315"]}}
 {"id": "c01", "category": "comparison", "question": "Should I take CS3358 or CS3360 first?", "expect": {"intent": "compare", "courses": ["CS3358", "CS3360"]}}
 {"id": "c02", "category": "comparison", "question": "What's the difference between CS4346 and CS4347?", "expect": {"intent": "compare", "courses": ["CS4346", "CS4347"]}}
@@ -61,3 +61,25 @@
 {"id": "h01", "category": "followup", "question": "Does it have a lab?", "expect": {"intent": "course_info", "courses": ["CS3358"]}, "history": [{"role": "user", "content": "Tell me about CS3358."}, {"role": "assistant", "content": "CS3358 Data Structures and Algorithms covers classic data structures and algorithm analysis."}]}
 {"id": "h02", "category": "followup", "question": "What does it unlock?", "expect": {"intent": "prereq", "courses": ["CS4328"], "prereq_codes": ["CS3339", "CS3360"]}, "history": [{"role": "user", "content": "What is Operating Systems about?"}, {"role": "assistant", "content": "CS4328 Operating Systems covers process management and CPU scheduling."}]}
 {"id": "h03", "category": "followup", "question": "What are its prerequisites?", "expect": {"intent": "prereq", "courses": ["CS3358"], "prereq_codes": ["CS2308"]}, "history": [{"role": "user", "content": "Tell me about CS3358."}, {"role": "assistant", "content": "CS3358 Data Structures and Algorithms covers classic data structures and algorithm analysis."}]}
+{"id": "r01", "category": "policy", "question": "Can I retake CS2308 to replace a D?", "expect": {"intent": "policy", "courses": ["CS2308"], "retrieve_kind": ["policy"]}}
+{"id": "r02", "category": "policy", "question": "How many hours count as full-time?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy", "registrar"]}}
+{"id": "r03", "category": "policy", "question": "What happens to my GPA if I withdraw from a class?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy"]}}
+{"id": "r04", "category": "policy", "question": "Can I take a course pass/fail?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy"]}}
+{"id": "r05", "category": "policy", "question": "What GPA puts me on academic probation?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy"]}}
+{"id": "r06", "category": "policy", "question": "Does AP credit count toward my degree?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy"]}}
+{"id": "r07", "category": "policy", "question": "How do I apply to graduate?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["policy", "registrar"]}}
+{"id": "g01", "category": "registrar", "question": "What's the last day to drop?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["registrar"]}}
+{"id": "g02", "category": "registrar", "question": "When does registration open?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["registrar"]}}
+{"id": "g03", "category": "registrar", "question": "How do I get into a full class?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["registrar"]}}
+{"id": "g04", "category": "registrar", "question": "When is finals week?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["registrar"]}}
+{"id": "q01", "category": "core", "question": "What counts for the communication core?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["core"]}}
+{"id": "q02", "category": "core", "question": "Which courses satisfy the core curriculum math requirement?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["core"]}}
+{"id": "d01", "category": "department", "question": "How do I get into undergraduate research?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["department"]}}
+{"id": "d02", "category": "department", "question": "Is there a BS/MS fast track?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["department", "grad_catalog"]}}
+{"id": "d03", "category": "department", "question": "Does the CS department offer internships for credit?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["department"]}}
+{"id": "e01", "category": "handbook", "question": "Can I use AI on assignments?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["handbook", "syllabus"]}}
+{"id": "e02", "category": "handbook", "question": "What happens if I'm caught plagiarizing?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["handbook"]}}
+{"id": "m01", "category": "grad_catalog", "question": "Can I take a 5000-level course as an undergrad?", "expect": {"intent": "policy", "courses": [], "retrieve_kind": ["grad_catalog"]}}
+{"id": "y01", "category": "syllabus", "question": "What's the textbook for CS3358?", "expect": {"intent": "course_info", "courses": ["CS3358"], "retrieve_kind": ["syllabus"]}}
+{"id": "y02", "category": "syllabus", "question": "What does CS3358 cover week by week?", "expect": {"intent": "course_info", "courses": ["CS3358"], "retrieve_kind": ["syllabus"]}}
+{"id": "y03", "category": "syllabus", "question": "Is there a final project in CS3358?", "expect": {"intent": "course_info", "courses": ["CS3358"], "retrieve_kind": ["syllabus"]}}

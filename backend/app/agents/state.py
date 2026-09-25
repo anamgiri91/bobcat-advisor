@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-INTENTS = ("course_info", "compare", "prereq", "plan", "instructor", "off_topic")
+INTENTS = ("course_info", "compare", "prereq", "plan", "policy", "instructor", "off_topic")
 
 # Which specialist agents run for each intent. The router can't invent new
 # agents; it only picks an intent, so the plan space stays small and testable.
@@ -21,6 +21,8 @@ AGENTS_FOR_INTENT: dict[str, list[str]] = {
     "compare": ["catalog", "search"],
     "prereq": ["catalog"],
     "plan": ["planner"],
+    # Academic rules, procedures, deadlines, department programs, honor code.
+    "policy": ["kb", "calendar"],
     "instructor": [],
     "off_topic": [],
 }
@@ -50,7 +52,7 @@ class QueryPlan:
 
 @dataclass
 class Evidence:
-    kind: str                  # catalog | prereq | plan
+    kind: str                  # catalog | prereq | plan | dates | a knowledge-base kind (app/kb/sources.py)
     text: str
     label: str                 # human-readable source label (shown to users)
     agent: str
@@ -61,7 +63,7 @@ class Evidence:
     def to_public(self) -> dict:
         return {"n": self.n, "kind": self.kind, "label": self.label,
                 "agent": self.agent, "chunk_id": self.chunk_id,
-                "snippet": self.text[:400]}
+                "url": self.metadata.get("url"), "snippet": self.text[:400]}
 
 
 @dataclass

@@ -146,13 +146,16 @@ def rerank_scores(query: str, texts: list[str]) -> list[float]:
 # ---------------------------------------------------------------------------
 
 class HybridIndex:
-    def __init__(self, db_path: str):
-        import chromadb
-        collection = chromadb.PersistentClient(path=db_path).get_collection(COLLECTION_NAME)
-        data = collection.get(include=["embeddings", "documents", "metadatas"])
-        self.ids: list[str] = data["ids"]
-        self.texts: list[str] = data["documents"]
-        self.metas: list[dict] = data["metadatas"]
+    def __init__(self, db_path: str | None = None, data: dict | None = None):
+        """Load from Chroma at `db_path`, or from `data` ({ids, documents,
+        metadatas, embeddings}) — the latter for tests and offline tools."""
+        if data is None:
+            import chromadb
+            collection = chromadb.PersistentClient(path=db_path).get_collection(COLLECTION_NAME)
+            data = collection.get(include=["embeddings", "documents", "metadatas"])
+        self.ids: list[str] = list(data["ids"])
+        self.texts: list[str] = list(data["documents"])
+        self.metas: list[dict] = list(data["metadatas"])
         emb = np.asarray(data["embeddings"], dtype=np.float32)
         self.emb = emb / (np.linalg.norm(emb, axis=1, keepdims=True) + 1e-12)
         self.bm25 = BM25([tokenize(t) for t in self.texts])
@@ -188,13 +191,15 @@ class HybridIndex:
         query: str,
         k: int = 8,
         filters: SearchFilters | None = None,
-        mode: str = "hybrid",
+        mode: str | None = None,
         rerank: bool | None = None,
         min_results: int = 1,
     ) -> list[RetrievedChunk]:
         """
-        mode: "hybrid" | "dense" | "bm25" — the eval harness compares all three.
+        mode: "hybrid" | "dense" | "bm25" (default settings.RETRIEVAL_MODE) — the
+        eval harness compares all three.
         """
+        mode = mode or settings.RETRIEVAL_MODE
         rerank = settings.RERANKER_ENABLED if rerank is None else rerank
 
         with span("retrieval.search", mode=mode, k=k, rerank=rerank,
@@ -257,6 +262,16 @@ class HybridIndex:
 
 _indexes: dict[str, HybridIndex] = {}
 _index_lock = threading.Lock()
+
+
+def set_index(index: HybridIndex | None, db_path: str | None = None) -> None:
+    """Install an index for `db_path` (tests); None drops it so it reloads."""
+    db_path = db_path or settings.CHROMA_DB_PATH
+    with _index_lock:
+        if index is None:
+            _indexes.pop(db_path, None)
+        else:
+            _indexes[db_path] = index
 
 
 def get_index(db_path: str | None = None) -> HybridIndex:

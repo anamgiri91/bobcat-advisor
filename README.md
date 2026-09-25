@@ -6,9 +6,9 @@ eligibility instead of guessing it, builds a next-term plan from the live
 TXST catalog, cites every claim, and verifies its own answers before you see
 them.
 
-> "Which course covers compilers?" · "Should I take CS3358 or CS3360 first?"
-> · "I've taken CS1428 and CS2308, what can I take next?" · "What are the
-> prereqs for CS3360?"
+> "Which course covers compilers?" · "Can I retake CS2308 to replace a D?"
+> · "What's the last day to drop?" · "What's the textbook for CS3358?" ·
+> "I've taken CS1428 and CS2308, what can I take next?"
 
 It stores no data about individual instructors and declines questions about
 them. Not affiliated with Texas State University.
@@ -22,6 +22,12 @@ them. Not affiliated with Texas State University.
   browses the live TXST catalog for your degree, fact-checks what it read,
   audits your progress and plans next term from your year, completed
   courses, major, interests and target load (see below).
+- **Knowledge base of official TXST pages.** Academic rules, core
+  curriculum, graduate catalog, CS department, registrar and calendar,
+  student handbook, and public course syllabi — crawled from TXST sites
+  only, split at headings, tagged with URL, catalog year and fetch date,
+  instructor details removed from syllabi, deadlines stored as dated
+  facts, refreshed by a weekly workflow (see below).
 - **Hybrid retrieval.** Dense (MiniLM, ONNX) + BM25 over the catalog, fused
   with RRF, course filters with relaxation, and optional cross-encoder
   reranking.
@@ -29,7 +35,7 @@ them. Not affiliated with Texas State University.
   Eligibility and "what does this unlock" are set logic, never generated.
 - **Self-verification.** Every sentence is checked against the evidence it
   cites; unsupported sentences are removed, and the pass rate is logged per answer.
-- **Evals in CI.** 63-case golden set plus an 18-case held-out set;
+- **Evals in CI.** 85-case golden set plus a 25-case held-out set;
   router, retrieval and tool metrics are gated against a baseline on every
   push, and a weekly LLM-judged end-to-end run.
 - **Degrades gracefully.** No API key, an overloaded, rate-limited or
@@ -93,11 +99,63 @@ the planner falls back to the prerequisite graph and says so. Settings:
 `WEB_BROWSING_ENABLED`, `CATALOG_BASE_URL`, `WEB_MAX_PAGES`,
 `WEB_MAX_COURSE_LOOKUPS`, `WEB_TIMEOUT_S`, `WEB_CACHE_TTL_S`.
 
+## Knowledge base (official TXST pages)
+
+`backend/app/kb/` crawls the sources in `app/kb/sources.json` and feeds them
+into the same search index as the catalog:
+
+| Source | Kind | Answers |
+|---|---|---|
+| Undergraduate catalog: academic rules | `policy` | repeating a course, pass/fail, withdrawal, course load, probation, graduation, transfer/AP credit |
+| Core curriculum | `core` | which courses count for each core area |
+| Graduate catalog | `grad_catalog` | taking graduate courses as an undergraduate |
+| CS department | `department` | research, internships/co-op, honors, the BS/MS track, advising |
+| Registrar and academic calendar | `registrar` | registration, full classes, deadlines |
+| Student handbook, honor code | `handbook` | academic integrity, AI use |
+| Public course syllabi (Texas HB 2504) | `syllabus` | textbook, weekly topics, projects, grading scheme |
+
+How it's built:
+
+- **Only official pages.** The crawler reuses the advising browser's sandbox
+  (HTTPS, TXST hosts, per-hop redirect checks, size/time/page limits),
+  obeys robots.txt, stays on each source's hosts, and only follows links
+  matching the source's keywords. Seeds are hub pages that are crawled
+  through, not indexed.
+- **Split at headings.** Chunks follow the page's h1–h4 structure (or
+  detected headings in PDF syllabi). A tiny subsection folds into its
+  parent; siblings never merge, so each chunk keeps its own heading.
+- **Tagged.** Every chunk records its URL, page title, heading path,
+  catalog year (catalog pages) and fetch date; citations show the
+  section and year and link to the page.
+- **People removed.** Syllabus sections about the instructor, contact or
+  office hours are dropped; lines naming a person, emails, phone numbers
+  and titled names are removed before indexing.
+- **Dates as data.** Calendar lines become dated facts
+  (`data/kb_dates.jsonl`) with the year taken from the section's term,
+  never guessed. The calendar agent marks each fact past or upcoming
+  relative to today; the answer writer only states dates from these facts.
+- **Kept fresh.** Each source has a refresh interval; pages older than
+  `KB_MAX_AGE_DAYS` aren't used to answer. `.github/workflows/kb-refresh.yml`
+  re-crawls weekly, rebuilds the index, runs the tests and evals, and opens
+  a pull request, so every refresh is reviewed before it ships.
+
+```bash
+cd backend
+python -m app.kb.build                      # crawl all sources -> data/kb_*.jsonl
+python -m app.kb.build --sources registrar  # one source; others kept
+python -m app.kb.build --check-freshness    # which sources are overdue
+bash scripts/build_index.sh                 # merge into the index (embeds only changes)
+```
+
+The sources' seed URLs are starting points: pages are found by following
+links, so a moved page is still discovered. Check the crawl report after
+the first run and adjust `sources.json` if a source finds no pages.
+
 ## Results
 
 | | Score |
 |---|---|
-| Router intent accuracy (held-out, rules only) | **0.89** |
+| Router intent accuracy (held-out, rules only; the LLM router covers paraphrases) | **0.80** |
 | Ordinary course questions wrongly declined as instructor questions | **0** (golden and held-out) |
 | Topic search hit@4 / MRR (BM25 leg; hybrid not yet re-measured) | **1.00 / 0.90** |
 | Prerequisite / planner correctness | **15/15** |
@@ -185,7 +243,7 @@ Add to your MCP client config:
     "args": ["/abs/path/backend/mcp_server.py"] } } }
 ```
 
-Tools: `search_catalog`, `course_info`, `plan_next_courses`, `ask_advisor`,
+Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_courses`, `ask_advisor`,
 `recommend_courses`.
 
 ## API
