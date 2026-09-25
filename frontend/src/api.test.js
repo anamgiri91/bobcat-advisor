@@ -53,3 +53,45 @@ describe("JSON requests", () => {
     expect(JSON.parse(init.body).scenarios[0].minor).toBe("Data Science");
   });
 });
+
+describe("stream failures never leave the UI spinning", () => {
+  it("reports a stream that closes without a final event", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => streamResponse(['event: plan\ndata: {"a":1}\n\n'])));
+    const events = [];
+    await expect(api.askStream("q", null, null, (t) => events.push(t))).rejects.toThrow(/closed before/);
+    expect(events).toEqual(["plan"]);
+  });
+
+  it("explains an unreachable server instead of 'Failed to fetch'", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    await expect(api.askStream("q", null, null, () => {})).rejects.toThrow(/Can't reach the server/);
+  });
+
+  it("says the server is waking up, then gives up if nothing arrives", async () => {
+    vi.stubGlobal("fetch", vi.fn((url, init) => new Promise((_, reject) => {
+      init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    })));
+    const events = [];
+    await expect(
+      api.askStream("q", null, null, (t) => events.push(t), undefined, { slowMs: 10, timeoutMs: 40 })
+    ).rejects.toThrow(/didn't respond in time/);
+    expect(events).toEqual(["slow"]);
+  });
+
+  it("a user cancel stays an AbortError (no error message shown)", async () => {
+    vi.stubGlobal("fetch", vi.fn((url, init) => new Promise((_, reject) => {
+      init.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    })));
+    const controller = new AbortController();
+    const pending = api.askStream("q", null, null, () => {}, controller.signal, { slowMs: 1000, timeoutMs: 5000 });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("server-sent error events end the stream without the cut-off message", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => streamResponse(['event: error\ndata: {"message":"boom"}\n\n'])));
+    const events = [];
+    await api.askStream("q", null, null, (t, d) => events.push([t, d]));
+    expect(events).toEqual([["error", { message: "boom" }]]);
+  });
+});

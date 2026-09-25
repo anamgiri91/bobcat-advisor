@@ -551,7 +551,8 @@ export default function AdvisorView() {
       await api.adviseStream(
         body,
         (type, data) => {
-          if (type === "agent") update((r) => ({ agents: { ...r.agents, [data.agent]: { ...r.agents[data.agent], ...data } } }));
+          if (type === "slow") update(() => ({ waking: true }));
+          else if (type === "agent") update((r) => ({ agents: { ...r.agents, [data.agent]: { ...r.agents[data.agent], ...data } } }));
           else if (type === "browse") update((r) => ({ visits: [...r.visits, data] }));
           else if (type === "profile") update(() => ({ flags: data.flags }));
           else if (type === "factcheck") update(() => ({ factcheck: data }));
@@ -754,6 +755,11 @@ export default function AdvisorView() {
           )}
           {run && (
             <Card title="Agents" right={run.visits.length > 0 && <Badge>{run.visits.length} pages</Badge>}>
+              {run.waking && run.running && Object.keys(run.agents).length === 0 && (
+                <p className="text-xs text-muted mb-2" role="status">
+                  Waking up the server (it sleeps when idle; this can take up to a minute)…
+                </p>
+              )}
               <AgentSteps agents={run.agents} running={run.running} />
               <Visits visits={run.visits} />
             </Card>

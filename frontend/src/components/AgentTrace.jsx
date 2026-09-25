@@ -33,7 +33,7 @@ function Step({ state, children }) {
 }
 
 export default function AgentTrace({ message }) {
-  const { plan, agents = {}, streaming, content, verification, mode } = message;
+  const { plan, agents = {}, streaming, content, verification, mode, waking } = message;
   if (!plan && !streaming) return null;
 
   const agentNames = plan?.agents || [];
@@ -47,7 +47,9 @@ export default function AgentTrace({ message }) {
           ? `${INTENT_LABELS[plan.intent] || plan.intent}${entities.length ? ` · ${entities.join(", ")}` : ""}${
               plan.method === "rules" ? " · rule router" : ""
             }`
-          : "Understanding your question…"}
+          : waking
+            ? "Waking up the server (it sleeps when idle; this can take up to a minute)…"
+            : "Understanding your question…"}
       </Step>
       {agentNames.map((name) => {
         const a = agents[name];

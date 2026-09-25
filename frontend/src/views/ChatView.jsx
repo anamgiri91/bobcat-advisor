@@ -94,6 +94,9 @@ export default function ChatView({ pendingQuestion, onPendingHandled }) {
         null,
         (type, data) => {
           switch (type) {
+            case "slow":
+              patchLast({ waking: true });
+              break;
             case "plan":
               patchLast({ plan: data.plan });
               break;
