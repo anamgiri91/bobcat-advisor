@@ -5,8 +5,8 @@ import MessageBubble from "../components/MessageBubble";
 import Sidebar from "../components/Sidebar";
 
 const EXAMPLE_QUESTIONS = [
-  "Does Lee Koh curve his exams?",
-  "Seaman or Bhandari for CS2308?",
+  "Which course covers compilers?",
+  "Should I take CS3358 or CS3360 first?",
   "I've taken CS1428 and CS2308. What can I take next?",
   "What are the prerequisites for CS3360?",
 ];
@@ -42,7 +42,7 @@ export default function ChatView({ pendingQuestion, onPendingHandled }) {
     // StrictMode's double-invoked effects in development.
     if (pendingQuestion && !loading && consumedRef.current !== pendingQuestion) {
       consumedRef.current = pendingQuestion;
-      handleSend(pendingQuestion, null);
+      handleSend(pendingQuestion);
       onPendingHandled?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +76,7 @@ export default function ChatView({ pendingQuestion, onPendingHandled }) {
     });
   }
 
-  async function handleSend(question, sourceFilter) {
+  async function handleSend(question) {
     setError(null);
     setLoading(true);
     setMessages((prev) => [
@@ -91,7 +91,7 @@ export default function ChatView({ pendingQuestion, onPendingHandled }) {
       await api.askStream(
         question,
         activeId,
-        sourceFilter,
+        null,
         (type, data) => {
           switch (type) {
             case "plan":
@@ -160,7 +160,7 @@ export default function ChatView({ pendingQuestion, onPendingHandled }) {
                 {EXAMPLE_QUESTIONS.map((q) => (
                   <button
                     key={q}
-                    onClick={() => handleSend(q, null)}
+                    onClick={() => handleSend(q)}
                     className="text-sm text-left px-4 py-3 rounded-xl border border-border bg-white hover:border-maroon/40 transition-colors"
                   >
                     {q}

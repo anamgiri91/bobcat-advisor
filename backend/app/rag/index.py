@@ -7,33 +7,27 @@ Reciprocal Rank Fusion, optionally reranked by a cross-encoder.
 Design decisions
 ----------------
 Exact search in memory, Chroma as the store of record.
-  The corpus is ~800 chunks (a 800x384 float matrix is 1.2MB). At this size
-  a brute-force cosine over numpy is faster than an ANN query and exact, and
-  it lets us apply arbitrary Python filters (e.g. "any of this chunk's
-  courses") that Chroma's `where` can't express. Chroma still persists the
-  embeddings, so nothing is re-embedded at startup. Past ~50k chunks, move
-  the dense leg back to collection.query() — the fusion code doesn't change.
+  The corpus is the course catalog (~50 chunks). At this size a brute-force
+  cosine over numpy is faster than an ANN query and exact, and it lets us
+  apply arbitrary Python filters (e.g. "any of this chunk's courses") that
+  Chroma's `where` can't express. Chroma still persists the embeddings, so
+  nothing is re-embedded at startup. Past ~50k chunks, move the dense leg
+  back to collection.query() — the fusion code doesn't change.
 
 Why hybrid?
-  MiniLM is weak on exact tokens: course numbers, surnames, and rare words
-  like "curve" or "Zybooks". BM25 is strong exactly there and weak on
-  paraphrase ("tests were brutal" vs "exams are hard"). RRF combines ranks,
-  not scores, so the two legs don't need calibrating against each other.
+  MiniLM is weak on exact tokens: course numbers and rare terms like
+  "automata" or "Zybooks". BM25 is strong exactly there and weak on
+  paraphrase ("programming for the web" vs "internet software
+  development"). RRF combines ranks, not scores, so the two legs don't need
+  calibrating against each other.
 
 Filter relaxation.
-  "Koh's CS2308 reviews" has 1 matching chunk. Rather than return 1 chunk,
-  the course filter is relaxed (the professor filter never is) and the span
-  records that it happened, so the answer can say "few CS2308-specific
-  reviews; these are from his other courses".
-
-Near-duplicate collapse.
-  Many reviews appear on both RMP and Coursicle. Returning both wastes
-  context slots, so results are de-duplicated on normalised body text.
+  When a course filter matches fewer than `min_results` chunks it is
+  dropped, and the span records that it happened.
 """
 
 from __future__ import annotations
 
-import hashlib
 import math
 import re
 import threading
@@ -47,7 +41,7 @@ from ..config import settings
 from ..knowledge.corpus import chunk_courses
 from ..tracing import span
 
-COLLECTION_NAME = "txstate_cs_reviews"
+COLLECTION_NAME = "txstate_cs_catalog"
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RERANK_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2"
 RRF_K = 60
@@ -65,10 +59,9 @@ class RetrievedChunk(TypedDict):
 
 @dataclass
 class SearchFilters:
-    professors: list[str] | None = None
     courses: list[str] | None = None
     sources: list[str] | None = None        # source_dir values
-    chunk_types: list[str] | None = None    # review | catalog | reddit
+    chunk_types: list[str] | None = None    # catalog
 
     def describe(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if v}
@@ -85,7 +78,8 @@ should very really just also into out up more most some any all not no""".split(
 
 
 def tokenize(text: str) -> list[str]:
-    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    # Letters and digits split apart, so "CS3358" matches the catalog's "CS 3358".
+    tokens = re.findall(r"[a-z]+|[0-9]+", text.lower())
     out = []
     for t in tokens:
         if t in _STOPWORDS or len(t) < 2:
@@ -147,10 +141,6 @@ def rerank_scores(query: str, texts: list[str]) -> list[float]:
     return [float(s) for s in _reranker.rerank(query, texts)]
 
 
-def body_key(text: str) -> str:
-    return hashlib.md5(re.sub(r"\W+", " ", text.lower()).strip().encode()).hexdigest()
-
-
 # ---------------------------------------------------------------------------
 # Index
 # ---------------------------------------------------------------------------
@@ -167,7 +157,6 @@ class HybridIndex:
         self.emb = emb / (np.linalg.norm(emb, axis=1, keepdims=True) + 1e-12)
         self.bm25 = BM25([tokenize(t) for t in self.texts])
         self.courses = [set(chunk_courses(m)) for m in self.metas]
-        self.body_keys = [body_key(t) for t in self.texts]
         self.by_id = {cid: i for i, cid in enumerate(self.ids)}
 
     def __len__(self) -> int:
@@ -175,16 +164,12 @@ class HybridIndex:
 
     # -- filtering ----------------------------------------------------------
 
-    def _mask(self, f: SearchFilters | None, include_short: bool) -> np.ndarray:
+    def _mask(self, f: SearchFilters | None) -> np.ndarray:
         mask = np.ones(len(self.ids), dtype=bool)
+        if f is None:
+            return mask
         for i, m in enumerate(self.metas):
-            if not include_short and m.get("short_review"):
-                mask[i] = False
-            elif f is None:
-                continue
-            elif f.professors and m.get("professor") not in f.professors:
-                mask[i] = False
-            elif f.courses and not (self.courses[i] & set(f.courses)):
+            if f.courses and not (self.courses[i] & set(f.courses)):
                 mask[i] = False
             elif f.sources and m.get("source_dir") not in f.sources:
                 mask[i] = False
@@ -205,25 +190,19 @@ class HybridIndex:
         filters: SearchFilters | None = None,
         mode: str = "hybrid",
         rerank: bool | None = None,
-        include_short: bool | None = None,
-        min_results: int = 3,
+        min_results: int = 1,
     ) -> list[RetrievedChunk]:
         """
         mode: "hybrid" | "dense" | "bm25" — the eval harness compares all three.
         """
         rerank = settings.RERANKER_ENABLED if rerank is None else rerank
-        include_short = settings.INCLUDE_SHORT_REVIEWS if include_short is None else include_short
 
         with span("retrieval.search", mode=mode, k=k, rerank=rerank,
                   filters=filters.describe() if filters else {}) as s:
-            mask = self._mask(filters, include_short)
-            # Relax the course filter (never the professor filter) when too
-            # few chunks match both.
+            mask = self._mask(filters)
             if filters and filters.courses and mask.sum() < min_results:
-                relaxed = SearchFilters(filters.professors, None, filters.sources, filters.chunk_types)
-                if filters.professors:
-                    mask = self._mask(relaxed, include_short)
-                    s.attributes["relaxed_course_filter"] = True
+                mask = self._mask(SearchFilters(None, filters.sources, filters.chunk_types))
+                s.attributes["relaxed_course_filter"] = True
             candidates = np.flatnonzero(mask)
             s.attributes["candidates"] = int(len(candidates))
             if len(candidates) == 0 or not query.strip():
@@ -251,16 +230,7 @@ class HybridIndex:
                     fused[i] = fused.get(i, 0.0) + 1.0 / (RRF_K + rank + 1)
                     diag.setdefault(i, {})["bm25"] = round(bm_by_idx[i], 3)
 
-            ranked = sorted(fused, key=fused.get, reverse=True)
-
-            # Collapse RMP/Coursicle duplicates of the same review.
-            seen_bodies: set[str] = set()
-            unique: list[int] = []
-            for i in ranked:
-                if self.body_keys[i] in seen_bodies:
-                    continue
-                seen_bodies.add(self.body_keys[i])
-                unique.append(i)
+            unique = sorted(fused, key=fused.get, reverse=True)
 
             if rerank and unique:
                 pool = unique[:RERANK_POOL]
@@ -277,43 +247,6 @@ class HybridIndex:
                 results.append(self._chunk(i, score, d))
             s.attributes["returned"] = len(results)
             return results
-
-    def balanced(
-        self,
-        query: str,
-        professors: list[str] | None,
-        courses: list[str] | None,
-        per_professor: int = 3,
-        max_professors: int = 5,
-        sources: list[str] | None = None,
-        **kwargs,
-    ) -> list[RetrievedChunk]:
-        """
-        Comparison retrieval: guarantee evidence for every compared professor.
-        If professors aren't named ("best prof for CS3358?"), compare the
-        professors with the most reviews for the course.
-        """
-        if not professors:
-            prof_counts: Counter = Counter()
-            for i, m in enumerate(self.metas):
-                if m.get("professor") and m["professor"].lower() != "unknown" and (
-                    not courses or self.courses[i] & set(courses)
-                ):
-                    prof_counts[m["professor"]] += 1
-            professors = [p for p, _ in prof_counts.most_common(max_professors)]
-
-        out: list[RetrievedChunk] = []
-        for prof in professors:
-            out.extend(self.search(
-                query, k=per_professor,
-                filters=SearchFilters(professors=[prof], courses=courses, sources=sources,
-                                      chunk_types=["review"]),
-                **kwargs,
-            ))
-        # Student discussion that isn't tied to a reviewed professor.
-        out.extend(self.search(query, k=2, filters=SearchFilters(
-            courses=courses, chunk_types=["reddit"], sources=sources), **kwargs))
-        return out
 
     def catalog_chunk(self, course: str) -> RetrievedChunk | None:
         for i, m in enumerate(self.metas):

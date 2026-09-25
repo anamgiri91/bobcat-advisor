@@ -32,7 +32,7 @@ export default function Header({ tab, onTab }) {
             Bobcat <span className="text-gold-light">Advisor</span>
           </h1>
           <p className="text-white/70 text-xs font-body">
-            TXST course advising and professor Q&A, grounded in the catalog and real reviews
+            TXST CS course advising, grounded in the official catalog
           </p>
         </div>
         <nav className="ml-auto flex gap-1" aria-label="Views">

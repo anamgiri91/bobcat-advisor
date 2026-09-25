@@ -5,11 +5,13 @@ FastAPI entrypoint for the Bobcat Advisor API.
 
 Architecture (see docs/ARCHITECTURE.md)
 ---------------------------------------
-- Agents:      router -> specialists (reviews, stats, catalog, planner) ->
+- Agents:      router -> specialists (catalog, search, planner) ->
                synthesizer -> verifier                   (app/agents/)
+- Advising:    seven-agent course recommendations over the live TXST
+               catalog                                   (app/advising/)
 - Retrieval:   hybrid dense + BM25 with RRF over the ChromaDB-persisted
                index                                     (app/rag/index.py)
-- Knowledge:   prerequisite graph, review statistics, entity registry
+- Knowledge:   prerequisite graph, course registry
                                                          (app/knowledge/)
 - Generation:  Gemini or Groq (OpenAI-compatible HTTP), with fallback, JSON mode, streaming
                and per-request budgets                   (app/llm.py)
@@ -37,18 +39,16 @@ _warm = {"ready": False, "error": None}
 
 def _warmup() -> None:
     """
-    Load the index, embedding model, registry and stats off the request
+    Load the index, embedding model and registry off the request
     path. Runs in a thread so the health check answers immediately (Render
     kills services whose health check doesn't respond during boot).
     """
     try:
         from .knowledge.corpus import registry
-        from .knowledge.stats import reviews
         from .rag.index import embed_query, get_index
         get_index()
         embed_query("warmup")
         registry()
-        reviews()
         missing = llm.missing_models()
         if missing:
             log.error("Configured %s models not listed for this API key: %s",
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Bobcat Advisor API",
-    description="Multi-agent RAG advisor for TXST CS courses and professors.",
+    description="Multi-agent advisor for TXST CS courses, grounded in the official catalog.",
     version="3.0.0",
     lifespan=lifespan,
 )

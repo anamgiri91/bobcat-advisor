@@ -1,10 +1,9 @@
-"""Catalog parsing, prerequisite graph, entity registry, stats, cleaning."""
+"""Catalog parsing, prerequisite graph, course registry, cleaning."""
 
 import pytest
 
 from app.knowledge import catalog as cat
 from app.knowledge.corpus import registry
-from app.knowledge.stats import compute_stats, lexicon_aspects, reviews
 from app.rag.cleaner import normalise_course
 
 
@@ -74,17 +73,6 @@ def test_unlocks():
     assert {"CS3354", "CS3360", "CS3378"} <= set(cat.unlocks("CS3358"))
 
 
-@pytest.mark.parametrize("text,profs", [
-    ("Is Koh or Lehr better?", ["Lee Koh", "Ted Lehr"]),
-    ("Does Burtcher curve?", ["Martin Burtscher"]),          # typo
-    ("professor li in 2308", ["Xiaomin Li"]),                # short name after title
-    ("I like this class a lot", []),                         # "li" inside words never matches
-    ("Gholoom's labs", ["Husain Gholoom"]),                  # possessive
-])
-def test_registry_professors(text, profs):
-    assert registry().match_professors(text) == profs
-
-
 @pytest.mark.parametrize("text,courses", [
     ("CS3358 or cs 2308", ["CS3358", "CS2308"]),
     ("data structures", ["CS3358"]),
@@ -95,29 +83,7 @@ def test_registry_courses(text, courses):
     assert registry().match_courses(text) == courses
 
 
-def test_registry_is_data_derived():
-    assert len(registry().professors) >= 10
-    assert "Unknown" not in registry().professors
-
-
-def test_stats_deduplicate_cross_posted_reviews():
-    # The same review text on RMP and Coursicle must count once.
-    keys = [(r["professor"], r["text"].strip().lower()) for r in reviews()]
-    assert len(keys) == len(set(keys))
-
-
-def test_stats_denominators():
-    s = compute_stats("Jill Seaman", "CS2308")
-    assert s["review_count"] > 10
-    assert s["quality_n"] <= s["review_count"]
-    for info in s["aspects"].values():
-        assert info["mentioned_in"] <= s["review_count"]
-
-
-def test_stats_unknown_pair_is_empty():
-    assert compute_stats("Lee Koh", "CS4388")["review_count"] == 0
-
-
-def test_lexicon_negation_wins():
-    assert lexicon_aspects("He does not curve at all.")["curve"] == "no"
-    assert lexicon_aspects("He curves the final a lot.")["curve"] == "yes"
+def test_catalog_only_corpus():
+    from app.knowledge.corpus import load_chunks
+    chunks = load_chunks()
+    assert chunks and {c["metadata"]["source_dir"] for c in chunks} == {"official"}

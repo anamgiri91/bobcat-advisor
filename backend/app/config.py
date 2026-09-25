@@ -120,7 +120,6 @@ class Settings:
     # Retrieval policy (tuned with evals/run_eval.py — see docs/EVALUATION.md)
     DEFAULT_TOP_K: int = int(os.environ.get("DEFAULT_TOP_K", "8"))
     RERANKER_ENABLED: bool = _bool("RERANKER_ENABLED", False)
-    INCLUDE_SHORT_REVIEWS: bool = _bool("INCLUDE_SHORT_REVIEWS", False)
 
     # Agent pipeline
     VERIFIER_ENABLED: bool = _bool("VERIFIER_ENABLED", True)

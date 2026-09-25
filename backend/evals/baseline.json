@@ -1,30 +1,27 @@
 {
-  "_comment": "Minimum scores for the offline eval suites, enforced in CI by tests/test_eval_gate.py. Set a little below measured values (see docs/EVALUATION.md) so noise-free regressions fail and intended improvements can raise the bar. Holdout is scored with rules the golden set never tuned.",
+  "_comment": "Minimum scores for the offline eval suites, enforced in CI by tests/test_eval_gate.py. Set a little below measured values (see docs/EVALUATION.md) so regressions fail and intended improvements can raise the bar. Holdout is scored with rules the golden set never tuned. retrieval_hybrid floors are provisional: they were set from the BM25 measurement because the embedding model couldn't be downloaded when the catalog-only index was built; raise them after the first CI run.",
   "router_golden": {
-    "intent_accuracy": 0.97,
-    "professor_exact_match": 0.97,
+    "intent_accuracy": 0.95,
     "course_recall": 0.95,
-    "completed_exact": 0.95,
-    "unknown_professor_detection": 1.0
+    "completed_exact": 1.0,
+    "instructor_recall": 0.85,
+    "instructor_specificity": 1.0
   },
   "router_holdout": {
-    "intent_accuracy": 0.88,
-    "professor_exact_match": 0.95
+    "intent_accuracy": 0.85,
+    "instructor_recall": 0.75,
+    "instructor_specificity": 1.0
   },
   "tools": {
     "prereq_accuracy": 1.0,
     "planner_accuracy": 1.0
   },
-  "retrieval_pipeline": {
-    "prof_precision": 0.95,
-    "entity_precision": 0.9,
-    "keyword_hit": 0.95,
-    "keyword_mrr": 0.82,
-    "prof_coverage": 1.0
+  "retrieval_bm25": {
+    "hit_at_k": 0.95,
+    "mrr": 0.85
   },
-  "retrieval_unfiltered": {
-    "prof_precision": 0.68,
-    "keyword_hit": 0.95,
-    "prof_coverage": 0.85
+  "retrieval_hybrid": {
+    "hit_at_k": 0.9,
+    "mrr": 0.8
   }
 }

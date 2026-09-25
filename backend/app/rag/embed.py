@@ -33,7 +33,7 @@ from fastembed import TextEmbedding
 # Config
 # ---------------------------------------------------------------------------
 
-COLLECTION_NAME = "txstate_cs_reviews"
+COLLECTION_NAME = "txstate_cs_catalog"
 EMBED_MODEL     = "all-MiniLM-L6-v2"
 BATCH_SIZE      = 64
 
@@ -47,12 +47,7 @@ def build_index(chunks_path: Path, db_path: Path) -> None:
     all_chunks = [json.loads(line) for line in chunks_path.open(encoding="utf-8")]
     print(f"  {len(all_chunks)} chunks loaded")
 
-    # Short reviews (< 50 words) are indexed too. Whether retrieval uses them
-    # is a query-time policy (settings.INCLUDE_SHORT_REVIEWS), decided by the
-    # eval harness rather than baked into the index.
     chunks = all_chunks
-    print(f"  Indexing {len(chunks)} chunks "
-          f"({sum(1 for c in chunks if c['metadata'].get('short_review'))} short reviews)")
 
     print(f"\nLoading embedding model: {EMBED_MODEL} ...")
     model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")

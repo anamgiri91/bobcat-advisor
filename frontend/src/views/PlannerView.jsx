@@ -20,7 +20,7 @@ export default function PlannerView({ onAsk }) {
     api.plan([...completed]).then(setResult).catch((e) => setError(e.message));
   }, [completed]);
 
-  // Course-level review stats for each eligible course (difficulty, quality).
+  // Catalog detail (what each course unlocks) for each eligible course.
   useEffect(() => {
     if (!result) return;
     result.eligible.forEach((c) => {
@@ -46,17 +46,17 @@ export default function PlannerView({ onAsk }) {
 
   const core = courses.filter((c) => Number(c.code[2]) <= 3);
   const eligible = (result?.eligible || []).slice().sort((a, b) => {
-    const ra = details[a.code]?.stats?.review_count || 0;
-    const rb = details[b.code]?.stats?.review_count || 0;
-    return b.newly_unlocked - a.newly_unlocked || rb - ra;
+    const ua = details[a.code]?.unlocks?.length || 0;
+    const ub = details[b.code]?.unlocks?.length || 0;
+    return b.newly_unlocked - a.newly_unlocked || ub - ua;
   });
 
   return (
     <div className="flex-1 overflow-y-auto thin-scroll px-4 md:px-6 py-6">
       <div className="max-w-5xl mx-auto">
         <p className="text-sm text-muted mb-3">
-          Select the courses you've passed. Eligibility is computed from the official prerequisite graph;
-          difficulty and ratings come from the reviews.
+          Select the courses you've passed. Eligibility is computed from the official catalog's prerequisite
+          graph.
         </p>
         {error && <p className="text-sm text-red-600 font-mono mb-4">{error}</p>}
 
@@ -111,13 +111,8 @@ export default function PlannerView({ onAsk }) {
                         <span className="text-[0.65rem] font-mono text-emerald-700 shrink-0">unlocked</span>
                       )}
                     </div>
-                    {d?.stats?.review_count > 0 ? (
-                      <p className="font-mono text-[0.7rem] text-muted mt-1">
-                        {d.stats.review_count} reviews · difficulty {d.stats.avg_difficulty ?? "–"}/5 · quality{" "}
-                        {d.stats.avg_quality ?? "–"}/5
-                      </p>
-                    ) : (
-                      <p className="font-mono text-[0.7rem] text-muted mt-1">no reviews in dataset</p>
+                    {d?.unlocks?.length > 0 && (
+                      <p className="font-mono text-[0.7rem] text-muted mt-1">unlocks {d.unlocks.join(", ")}</p>
                     )}
                     {c.conditions.length > 0 && (
                       <p className="text-[0.7rem] text-amber-700 mt-2">Also check: {c.conditions.join("; ")}</p>

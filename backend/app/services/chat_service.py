@@ -83,7 +83,7 @@ def persist_turn(
         content=done.get("answer", ""),
         sources=[s["label"] for s in done.get("sources", [])],
         latency_ms=latency_ms,
-        retrieved_chunk_count=sum(1 for s in done.get("sources", []) if s["kind"] in ("review", "reddit")),
+        retrieved_chunk_count=sum(1 for s in done.get("sources", []) if s["kind"] == "catalog"),
         source_filter=source_filter,
         intent=(done.get("plan") or {}).get("intent"),
         answer_mode=done.get("mode"),

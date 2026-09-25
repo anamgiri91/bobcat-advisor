@@ -1,4 +1,4 @@
-"""Hybrid index behaviour: filters, relaxation, dedup, balanced comparison."""
+"""Hybrid index behaviour over the catalog: tokenisation, filters, relaxation."""
 
 from app.rag.index import BM25, SearchFilters, get_index, tokenize
 
@@ -7,50 +7,42 @@ def test_tokenize_light_stemming():
     assert tokenize("The exams were curves") == ["exam", "curve"]
 
 
+def test_tokenize_splits_course_codes():
+    assert tokenize("CS3358") == tokenize("CS 3358") == ["cs", "3358"]
+
+
 def test_bm25_prefers_exact_term():
-    bm = BM25([tokenize("he curves the final"), tokenize("lectures are boring")])
-    s = bm.scores(tokenize("curve"))
+    bm = BM25([tokenize("lexical analysis and parsing"), tokenize("computer networks")])
+    s = bm.scores(tokenize("parsing"))
     assert s[0] > 0 and s[1] == 0
 
 
-def test_professor_filter_is_strict():
+def test_index_holds_only_the_catalog():
     ix = get_index()
-    for mode in ("dense", "bm25", "hybrid"):
-        res = ix.search("does he curve", k=8, filters=SearchFilters(professors=["Lee Koh"]), mode=mode)
-        assert res and all(r["metadata"]["professor"] == "Lee Koh" for r in res)
+    assert len(ix) >= 40
+    assert {m["chunk_type"] for m in ix.metas} == {"catalog"}
+    assert all("professor" not in m for m in ix.metas)
 
 
-def test_course_filter_relaxes_but_professor_does_not():
-    ix = get_index()
-    # Koh has no CS4388 reviews: course filter relaxes, professor filter stays.
-    res = ix.search("lectures", k=5, filters=SearchFilters(professors=["Lee Koh"], courses=["CS4388"]))
-    assert res and all(r["metadata"]["professor"] == "Lee Koh" for r in res)
+def test_topic_search_finds_the_course():
+    res = get_index().search("lexical analysis and parsing", k=3, mode="bm25")
+    assert res[0]["metadata"]["course"] == "CS4318"
 
 
-def test_results_are_deduplicated():
-    ix = get_index()
-    res = ix.search("Qasem computer architecture", k=10,
-                    filters=SearchFilters(professors=["Apan Qasem"]))
-    bodies = [" ".join(r["text"].lower().split()) for r in res]
-    assert len(bodies) == len(set(bodies))
+def test_course_filter():
+    res = get_index().search("algorithms", k=5, mode="bm25", filters=SearchFilters(courses=["CS3358"]))
+    assert res and all(r["metadata"]["course"] == "CS3358" for r in res)
+
+
+def test_unknown_course_filter_relaxes():
+    res = get_index().search("networks", k=3, mode="bm25", filters=SearchFilters(courses=["CS9999"]))
+    assert res
 
 
 def test_hybrid_scores_are_descending():
-    res = get_index().search("hard exams", k=8, filters=SearchFilters(professors=["Keshav Bhandari"]))
+    res = get_index().search("machine learning and neural networks", k=8)
     scores = [r["score"] for r in res]
     assert scores == sorted(scores, reverse=True)
-
-
-def test_balanced_covers_every_named_professor():
-    res = get_index().balanced("who is better", ["Jill Seaman", "Husain Gholoom"], ["CS1428"])
-    profs = {r["metadata"]["professor"] for r in res}
-    assert {"Jill Seaman", "Husain Gholoom"} <= profs
-
-
-def test_balanced_without_names_picks_course_professors():
-    res = get_index().balanced("best professor", None, ["CS3358"])
-    profs = {r["metadata"]["professor"] for r in res if r["metadata"]["professor"]}
-    assert len(profs) >= 3
 
 
 def test_catalog_chunk_lookup():

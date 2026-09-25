@@ -1,9 +1,10 @@
 # Bobcat Advisor — Architecture
 
 A multi-agent advisor for Texas State CS students. It answers questions about
-professors and courses from real reviews, computes statistics and
-prerequisite eligibility exactly, and verifies its own answers against the
-sources it cites.
+courses from the official catalog, computes prerequisite eligibility exactly,
+plans next term from the live catalog (the advising pipeline, below), and
+verifies its own answers against the sources it cites. It keeps no data
+about individual instructors and declines questions about them.
 
 ## Request flow
 
@@ -16,21 +17,21 @@ sources it cites.
  └────────┬─────────┘
           ▼
  ┌──────────────────┐  fast model, JSON mode → QueryPlan
- │      Router      │  {intent, professors, courses, completed, standalone_question}
- │  (LLM → rules)   │  every entity validated against the data-derived registry;
+ │      Router      │  {intent, courses, completed, standalone_question}
+ │  (LLM → rules)   │  courses validated against the catalog registry;
+ │                  │  "instructor" intent → fixed reply, no retrieval;
  └────────┬─────────┘  falls back to rule router on any failure
           │ intent → fixed set of specialists (state.AGENTS_FOR_INTENT)
           ▼
- ┌──────────┬──────────┬───────────┬───────────┐   run in parallel threads,
- │ Reviews  │  Stats   │  Catalog  │  Planner  │   no LLM calls — tools only
- │ hybrid   │ exact    │ prereq    │ eligibility│
- │ RAG      │ counts   │ graph     │ + stats   │
- └────┬─────┴────┬─────┴─────┬─────┴─────┬─────┘
-      └──────────┴─── evidence [1..n] ───┘   deduped, ordered: stats → plan →
-          │                                   prereq → catalog → reviews
+ ┌───────────┬───────────┬────────────┐   run in parallel threads,
+ │  Catalog  │  Search   │  Planner   │   no LLM calls — tools only
+ │  prereq   │  hybrid   │ eligibility│
+ │  graph    │  catalog  │            │
+ └─────┬─────┴─────┬─────┴──────┬─────┘
+       └──── evidence [1..n] ───┘   deduped, ordered: plan → prereq → catalog
           ▼
  ┌──────────────────┐  streamed; every factual sentence cites [n]
- │   Synthesizer    │  no LLM available → extractive answer (tool output + quotes)
+ │   Synthesizer    │  no LLM available → extractive answer (tool output + catalog text)
  └────────┬─────────┘
           ▼
  ┌──────────────────┐  1. citation check (deterministic): invalid [n], coverage
@@ -51,15 +52,16 @@ yields events, and the API streams those same events to the browser over SSE:
 |---|---|---|
 | LLM client | `app/llm.py` | One pooled HTTP client for any OpenAI-compatible API (Gemini by default, Groq supported), with no vendor SDK. Model fallback on 404/408/429/5xx/JSON-validation errors, one wait-and-retry when every model is rate limited, per-role reasoning effort and deadlines, JSON mode with repair retry, streaming, a per-request budget that counts hidden reasoning tokens, and a tracing span per call. Swappable backend for tests. |
 | Tracing | `app/tracing.py` | ContextVar trace with OTel-shaped spans. Stored per answer in `messages.trace`. |
-| Guardrails | `app/guardrails.py` | Request classification, injection detection, neutralising instruction-like text inside scraped reviews, PII redaction. |
+| Guardrails | `app/guardrails.py` | Request classification, injection detection, neutralising instruction-like text inside fetched pages, PII redaction. |
 | Router | `app/agents/router.py` | LLM router plus a rule router with the same `QueryPlan` contract. |
-| Specialists | `app/agents/specialists.py` | reviews / stats / catalog / planner. |
-| Synthesizer | `app/agents/synthesizer.py` | Grounded, cited, balanced answer; extractive fallback. |
+| Specialists | `app/agents/specialists.py` | catalog / search / planner. |
+| Synthesizer | `app/agents/synthesizer.py` | Grounded, cited answer; never discusses instructors; extractive fallback. |
 | Verifier | `app/agents/verifier.py` | Citation and claim-level support checks; revision. |
-| Retrieval | `app/rag/index.py` | Dense + BM25 → RRF, optional cross-encoder rerank, metadata filters with course-filter relaxation, near-duplicate collapse. |
-| Knowledge | `app/knowledge/` | `catalog.py` prerequisite graph (CNF), `corpus.py` entity registry, `stats.py` review statistics, `aspects.py` LLM aspect extraction. |
-| Ingestion | `app/rag/{chunker,cleaner,ingest,embed}.py` | Chunk → clean (course normalisation) → incremental embed (content-hash IDs). |
-| API | `app/routers/` | chat (JSON + SSE), history, feedback, analytics (+ `/agents`), knowledge (professors, courses, compare, plan). |
+| Retrieval | `app/rag/index.py` | Dense + BM25 → RRF over the catalog, optional cross-encoder rerank, course filters with relaxation. |
+| Knowledge | `app/knowledge/` | `catalog.py` prerequisite graph (CNF), `corpus.py` course registry. |
+| Ingestion | `app/rag/{chunker,cleaner,ingest,embed}.py` | Catalog entries → course normalisation → incremental embed (content-hash IDs). |
+| Advising | `app/advising/` | Seven-agent course-recommendation pipeline over the live TXST catalog (see README). |
+| API | `app/routers/` | chat (JSON + SSE), advise (JSON + SSE), history, feedback, analytics (+ `/agents`), knowledge (courses, plan). |
 | MCP | `mcp_server.py` | The same tools exposed to any MCP client. |
 
 ## Design decisions
@@ -72,16 +74,16 @@ router output degrades to a slightly wrong set of tools rather than an
 unbounded loop.
 
 **Specialists don't call LLMs.** Everything the synthesizer can cite came
-from a deterministic tool: a retrieved review, a computed statistic, a
-prerequisite-graph result. That's why the numbers in answers can be trusted
-("mentioned in 11 of 139 reviews") and why the specialists are unit-testable
-and cost nothing to run. The LLM budget goes to the three places it adds
-value: understanding the question, writing, and checking.
+from a deterministic tool: a catalog entry or a prerequisite-graph result.
+That's why eligibility in answers can be trusted and why the specialists are
+unit-testable and cost nothing to run. The LLM budget goes to the three
+places it adds value: understanding the question, writing, and checking.
 
-**Counting is computed, not generated.** `stats.py` merges cross-posted
-reviews (the same text on RMP and Coursicle), then counts ratings, grades and
-aspect mentions with explicit denominators. The synthesizer prompt forbids
-"most students" unless the counts show a majority.
+**No data about people.** The app indexes only the official catalog. The
+router gives questions about a specific instructor the `instructor` intent,
+which returns a fixed reply without retrieval or an LLM call; the
+synthesizer and advisor prompts also forbid naming or rating instructors, as
+a second line for questions the router misses.
 
 **Prerequisites are a graph, not a retrieval problem.** The catalog is parsed
 into CNF (an AND of OR-groups), with conditional groups for ACT/approval
@@ -89,22 +91,20 @@ alternatives. Eligibility is set logic: `expand_completed` infers implied
 courses (passing CS2308 implies CS1428), but never guesses which branch of
 an OR-group was taken.
 
-**Exact search in memory, Chroma as the store of record.** About 800 chunks is
-a 1.2MB matrix. Brute-force cosine is exact, takes about 4ms, and supports
-filters Chroma's `where` can't express (e.g. "any of this multi-course
-review's courses"). Past roughly 50k chunks, the dense leg moves back to
+**Exact search in memory, Chroma as the store of record.** The catalog is
+~50 chunks. Brute-force cosine is exact, takes well under a millisecond, and
+supports filters Chroma's `where` can't express (e.g. "any of this entry's
+courses"). Past roughly 50k chunks, the dense leg moves back to
 `collection.query`; the fusion code doesn't change.
 
-**Hybrid + RRF.** MiniLM misses exact tokens (surnames, course numbers,
-"zyBooks", "curve"); BM25 misses paraphrase. RRF fuses ranks, so the two
-legs never need score calibration. See `docs/EVALUATION.md` for the measured
-gains.
+**Hybrid + RRF.** MiniLM misses exact tokens (course numbers, "TCP/IP",
+"automata"); BM25 misses paraphrase. RRF fuses ranks, so the two legs never
+need score calibration. BM25 tokenisation splits letters from digits so
+"CS3358" matches the catalog's "CS 3358".
 
-**The reranker is off by default.** It improves raw ranking but adds about 70ms
-p50 and about 100MB RSS. It also *hurts* professor coverage on comparison
-questions, because it concentrates results on whoever has the most on-topic
-text. On a 512MB instance that isn't worth it. Enable it with
-`RERANKER_ENABLED=true` on larger instances.
+**The reranker is off by default.** It adds about 70ms p50 and about 100MB
+RSS; on a 512MB instance that isn't worth it for a ~50-entry corpus. Enable
+it with `RERANKER_ENABLED=true` on larger instances.
 
 **The verifier deletes rather than regenerates.** A second synthesis is the
 most expensive call, and it can introduce new unsupported claims. Deleting a
@@ -168,11 +168,12 @@ answers depend on the conversation.
 
 - **Private info / harassment / prompt extraction:** declined before retrieval with fixed responses.
 - **Prompt injection via the question:** flagged; the synthesizer is told to answer only the legitimate part.
-- **Prompt injection via reviews:** scraped text is untrusted. Evidence is
+- **Prompt injection via fetched pages:** web text is untrusted. Evidence is
   wrapped in `<evidence>` tags, instruction-like spans are rewritten to
   `[quoted text: …]`, and the system prompt says evidence is data.
-- **Fairness:** opinions are attributed ("reviewers say"), both sides are presented,
-  and the eval judge scores balance.
+- **Individual instructors:** no data about people is stored; questions about
+  instructors get a fixed reply, and prompts forbid naming or rating them.
+  The eval judge scores this (`people`).
 - **PII:** emails and phone numbers are redacted from answers and from the stored question.
 - **Web browsing (advising pipeline):** the researcher can only fetch HTTPS
   pages on allowlisted TXST hosts; redirects are followed by hand and each
@@ -197,8 +198,10 @@ Measured on macOS arm64; Linux numbers will differ somewhat.
 
 | Configuration | Peak RSS |
 |---|---|
-| API after warmup (index + MiniLM + registry + stats) | ~340–390MB |
+| API after warmup (index + MiniLM + registry), measured with the earlier ~800-chunk review corpus | ~340–390MB |
 | + cross-encoder reranker | ~440–490MB |
+
+The catalog-only index is smaller, so these are upper bounds.
 
 This is why the reranker is off by default, and why PyTorch was replaced with ONNX
 (`fastembed`) earlier.

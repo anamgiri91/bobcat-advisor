@@ -63,7 +63,7 @@ def check_citations(answer: str, n_evidence: int) -> dict:
 
 VERIFIER_PROMPT = """You check whether each sentence of an answer is supported by the evidence \
 it cites. A sentence is SUPPORTED if the cited evidence states or directly implies it \
-(paraphrase and reasonable summarisation of several reviews are fine). It is UNSUPPORTED if it \
+(paraphrase and reasonable summarisation of several sources are fine). It is UNSUPPORTED if it \
 adds facts, numbers, or strong generalisations the cited evidence doesn't contain, or cites \
 nothing while making a factual claim. Recommendations are supported if they follow from \
 supported claims.
