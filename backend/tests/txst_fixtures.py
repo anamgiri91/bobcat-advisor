@@ -126,9 +126,36 @@ SEARCH_PAGE = """<html><head><title>Search</title></head><body>
 </body></html>"""
 
 
+BA_URL = BASE + "/undergraduate/science-engineering/computer-science/computer-science-ba/"
+BA_PAGE = PROGRAM_PAGE.replace("Computer Science (B.S.)", "Computer Science (B.A.)").replace(
+    _row("CS 3339", "Computer Architecture") + _row("CS 3358", "Data Structures and Algorithms")
+    + _row("CS 3360", "Computing Systems Fundamentals"),
+    _row("CS 3358", "Data Structures and Algorithms"))
+
+MINOR_URL = BASE + "/undergraduate/science-engineering/computer-science/data-science-minor/"
+MINOR_PAGE = f"""<!doctype html><html><head><title>Data Science Minor &lt; Texas State University</title>
+</head><body><p>2025-2026 Undergraduate Catalog</p><h1>Data Science Minor</h1>
+<table class="sc_courselist"><tbody>
+{_area("Required Courses")}
+{_row("CS 3358", "Data Structures and Algorithms")}
+{_row("CS 4315", "Introduction to Data Mining and Information Retrieval")}
+{_row("CS 4332", "Introduction to Database Systems")}
+{_area("Electives")}
+{_comment("Select 6 hours from the following:", "6")}
+{_row("CS 4346", "Introduction to Artificial Intelligence")}
+{_row("CS 4337", "Introduction to Computer Vision")}
+</tbody></table></body></html>"""
+
+MINOR_SEARCH = """<html><head><title>Search</title></head><body>
+<div class="searchresult"><h2><a href="/undergraduate/science-engineering/computer-science/data-science-minor/">Data Science Minor</a></h2></div>
+</body></html>"""
+
+
 def pages() -> dict[str, str]:
     from urllib.parse import quote_plus
-    out = {PROGRAM_URL: PROGRAM_PAGE, BASE + "/search/?search=Computer+Science": SEARCH_PAGE}
+    out = {PROGRAM_URL: PROGRAM_PAGE, BASE + "/search/?search=Computer+Science": SEARCH_PAGE,
+           BA_URL: BA_PAGE, MINOR_URL: MINOR_PAGE,
+           BASE + "/search/?search=Data+Science+minor": MINOR_SEARCH}
     for code, html in COURSE_PAGES.items():
         out[f"{BASE}/search/?P={quote_plus(code)}"] = html
     return out

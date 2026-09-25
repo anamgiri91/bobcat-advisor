@@ -128,6 +128,146 @@ function Timetable({ timetable, prefs }) {
   );
 }
 
+const SCENARIO_LABELS = {
+  switch_major: "Switch major",
+  add_minor: "Add a minor",
+  fail_course: "Fail a course",
+  change_load: "Change hours per term",
+};
+
+function describeScenario(s) {
+  if (s.type === "switch_major") return `Switch to ${s.major} (${s.degree})`;
+  if (s.type === "add_minor") return `Add a ${s.minor} minor`;
+  if (s.type === "fail_course") return `Fail ${s.course}`;
+  return `${s.target_credits} hours per term`;
+}
+
+function WhatIf({ body, courses }) {
+  const [draft, setDraft] = useState({ type: "add_minor", major: "", degree: "BS", minor: "", course: "", target_credits: 12 });
+  const [scenarios, setScenarios] = useState([]);
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const set = (k) => (e) => setDraft((d) => ({ ...d, [k]: e.target.value }));
+
+  function add() {
+    const { type } = draft;
+    const s = { type };
+    if (type === "switch_major") Object.assign(s, { major: draft.major.trim(), degree: draft.degree });
+    if (type === "add_minor") s.minor = draft.minor.trim();
+    if (type === "fail_course") s.course = draft.course;
+    if (type === "change_load") s.target_credits = Number(draft.target_credits);
+    if ((type === "switch_major" && !s.major) || (type === "add_minor" && !s.minor) || (type === "fail_course" && !s.course)) return;
+    setScenarios((prev) => [...prev, s].slice(0, 4));
+  }
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await api.whatIf(body, scenarios));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const rows = result ? [result.baseline, ...result.scenarios] : [];
+  return (
+    <Card title="What if…" right={<Badge>no AI · computed</Badge>}>
+      <p className="text-xs text-muted mb-2">
+        See how a change moves your graduation date. Each scenario reruns the degree audit and roadmap.
+      </p>
+      <div className="flex flex-wrap gap-2 items-end">
+        <label>
+          <Label>Scenario</Label>
+          <select className={INPUT} value={draft.type} onChange={set("type")}>
+            {Object.entries(SCENARIO_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </label>
+        {draft.type === "switch_major" && (
+          <>
+            <label><Label>Major</Label><input className={INPUT} value={draft.major} onChange={set("major")} placeholder="Computer Science" /></label>
+            <label><Label>Degree</Label><select className={INPUT} value={draft.degree} onChange={set("degree")}><option>BS</option><option>BA</option></select></label>
+          </>
+        )}
+        {draft.type === "add_minor" && (
+          <label><Label>Minor</Label><input className={INPUT} value={draft.minor} onChange={set("minor")} placeholder="Data Science" /></label>
+        )}
+        {draft.type === "fail_course" && (
+          <label>
+            <Label>Course</Label>
+            <select className={INPUT} value={draft.course} onChange={set("course")}>
+              <option value="">choose…</option>
+              {courses.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+        )}
+        {draft.type === "change_load" && (
+          <label><Label>Hours</Label><input className={INPUT} type="number" min={3} max={21} value={draft.target_credits} onChange={set("target_credits")} /></label>
+        )}
+        <button type="button" onClick={add} disabled={scenarios.length >= 4}
+          className="text-xs font-display font-bold uppercase border border-maroon text-maroon rounded-lg px-3 py-2 disabled:opacity-40">
+          + Add
+        </button>
+      </div>
+      {scenarios.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {scenarios.map((s, i) => (
+            <button key={i} type="button" onClick={() => setScenarios((prev) => prev.filter((_, j) => j !== i))}
+              className="text-xs bg-cream border border-border rounded-full px-2.5 py-1 hover:border-red-300" title="Remove">
+              {describeScenario(s)} ×
+            </button>
+          ))}
+          <button type="button" onClick={run} disabled={busy}
+            className="text-xs font-display font-bold uppercase bg-maroon text-white rounded-lg px-3 py-1 disabled:opacity-60">
+            {busy ? "Comparing…" : "Compare"}
+          </button>
+        </div>
+      )}
+      {error && <p className="text-xs text-red-600 font-mono mt-2">{error}</p>}
+      {result && (
+        <div className="mt-3 overflow-x-auto thin-scroll">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-muted font-display uppercase text-[0.65rem]">
+                <th className="py-1 pr-3">Scenario</th><th className="pr-3">Graduation</th><th className="pr-3">Change</th>
+                <th className="pr-3">Hours left</th><th>Requirements left</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((o, i) => (
+                <tr key={i} className="border-t border-border align-top">
+                  <td className="py-1.5 pr-3">
+                    <p className={i === 0 ? "font-semibold" : ""}>{o.description}</p>
+                    {o.notes.slice(0, 2).map((n) => <p key={n} className="text-[0.65rem] text-muted">{n}</p>)}
+                  </td>
+                  <td className="pr-3 font-mono">{o.graduation_term || "—"}</td>
+                  <td className="pr-3 font-mono">
+                    {i === 0 || o.delta_terms == null ? "" : o.delta_terms === 0 ? (
+                      <span className="text-muted">same term{o.delta_hours ? `, ${o.delta_hours > 0 ? "+" : ""}${o.delta_hours} hrs` : ""}</span>
+                    ) : (
+                      <span className={o.delta_terms > 0 ? "text-red-700" : "text-emerald-700"}>
+                        {o.delta_terms > 0 ? "+" : ""}{o.delta_terms} term{Math.abs(o.delta_terms) > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </td>
+                  <td className="pr-3 font-mono">{o.hours_remaining ?? "—"}</td>
+                  <td className="font-mono">{o.requirements_remaining}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-[0.65rem] text-muted mt-2">Estimates assume each course is offered and passed as planned. Confirm with your advisor.</p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 const INTERESTS = ["AI", "Machine learning", "Data", "Security", "Web", "Games", "Systems", "Software", "Theory", "Mobile"];
 const YEARS = ["freshman", "sophomore", "junior", "senior"];
 const INPUT = "w-full text-sm bg-white border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-maroon/50";
@@ -371,18 +511,9 @@ export default function AdvisorView() {
       return { ...f, [k]: next };
     });
 
-  async function submit(e) {
-    e.preventDefault();
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setError(null);
-    setActiveSource(null);
-    setRun({ agents: {}, visits: [], memo: "", running: true });
-    // On narrow screens the results are below the form.
-    if (window.innerWidth < 1024) resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function buildBody() {
     const split = (s) => s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
-    const body = {
+    return {
       major: form.major,
       degree: form.degree,
       year: form.year,
@@ -402,6 +533,19 @@ export default function AdvisorView() {
       busy: form.busy.split(/[;\n]/).map((x) => x.trim()).filter(Boolean),
       modality: form.modality || null,
     };
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setError(null);
+    setActiveSource(null);
+    const body = buildBody();
+    setRun({ agents: {}, visits: [], memo: "", running: true, body });
+    // On narrow screens the results are below the form.
+    if (window.innerWidth < 1024) resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     const update = (fn) => setRun((r) => ({ ...r, ...fn(r) }));
     try {
       await api.adviseStream(
@@ -655,6 +799,13 @@ export default function AdvisorView() {
                 ))}
               </ol>
             </Card>
+          )}
+          {run?.schedule && !run.running && (
+            <WhatIf
+              body={run.body}
+              courses={[...new Set([...(run.body?.completed || []), ...(run.body?.in_progress || []),
+                ...run.schedule.courses.map((c) => c.code)])]}
+            />
           )}
           {run?.sources?.length > 0 && (
             <Card title="Sources">

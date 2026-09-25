@@ -17,6 +17,8 @@ import datetime as dt
 import re
 from dataclasses import asdict, dataclass, field
 
+from ..knowledge.catalog import expand_completed
+
 YEARS = ("freshman", "sophomore", "junior", "senior")
 _YEAR_ALIASES = {
     "1": "freshman", "first": "freshman", "freshman": "freshman", "fr": "freshman",
@@ -171,6 +173,13 @@ def build_profile(raw: dict) -> tuple[StudentProfile, list[str]]:
 
     notes = str(raw.get("notes") or "")[:1000]
     completed = normalise_codes(raw.get("completed"))
+    # Passing a course implies passing its single-option prerequisites (CS3398
+    # implies CS3358). Without this the audit would ask for CS3358 again.
+    implied = sorted(expand_completed(set(completed)) - set(completed))
+    if implied:
+        completed += implied
+        flags.append(f"Counted {', '.join(implied)} as passed: they're prerequisites of courses "
+                     "you listed. Tell your advisor if you satisfied them another way.")
     # Course codes mentioned in free-text notes ("I already passed MATH 2471")
     # are NOT silently added: the student may be naming courses they plan to
     # take. They're surfaced so the advisor can ask.

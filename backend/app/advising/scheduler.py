@@ -333,7 +333,9 @@ class _Planner:
         pool_hours = dict(pools_left)
         target = self.profile.target_credits
         for score, cand, reasons, conditions in scored:
-            if cand.group in groups:
+            # One course per "any one of" requirement; an elective pool takes
+            # courses until its hours are covered (checked below).
+            if cand.kind != "elective" and cand.group in groups:
                 continue
             h = course_hours(cand.code, self.research)
             if hours + h > target + (1 if hours <= target - 3 else 0):
@@ -376,7 +378,10 @@ def _next_label(term: str) -> str:
 
 
 def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: AuditResult,
-                  report: FactCheckReport) -> SchedulePlan:
+                  report: FactCheckReport, fail_first_attempt: set[str] | None = None) -> SchedulePlan:
+    """`fail_first_attempt`: what-if courses that are failed the first time they're taken;
+    the attempt uses its term's hours but doesn't count, so the course is re-planned."""
+    failing = set(fail_first_attempt or ())
     with span("agent.scheduler") as s:
         planner = _Planner(profile, research, audit, report)
         mode = "degree" if audit.available else "prerequisites_only"
@@ -406,19 +411,35 @@ def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: Audi
         if mode == "degree":
             done_sim, left = set(done), dict(pools_left)
             t, label = term, profile.planned_term
+            idle = 0
             for i in range(MAX_ROADMAP_TERMS):
                 picks = (plan.courses if i == 0 else
                          planner.plan_term(done_sim, left, t, False, season=label.split()[0])[0])
                 if not picks:
-                    break
+                    # Nothing needed is offered/eligible this term: skip it, but
+                    # stop after two empty terms in a row (nothing left to place).
+                    idle += 1
+                    if idle >= 2:
+                        break
+                    plan.roadmap.append({"term": label, "courses": [], "hours": 0, "failed": []})
+                    t = _next_term(*t)
+                    label = _next_label(label)
+                    continue
+                idle = 0
+                failed = [p.code for p in picks if p.code in failing]
                 plan.roadmap.append({"term": label, "courses": [p.code for p in picks],
-                                     "hours": sum(p.hours for p in picks)})
+                                     "hours": sum(p.hours for p in picks), "failed": failed})
                 for p in picks:
+                    if p.code in failing:
+                        failing.discard(p.code)      # retaken in a later term
+                        continue
                     done_sim.add(p.code)
                     if p.kind == "elective":
                         left[p.group] = left.get(p.group, 0) - p.hours
                 t = _next_term(*t)
                 label = _next_label(label)
+            while plan.roadmap and not plan.roadmap[-1]["courses"]:
+                plan.roadmap.pop()          # trailing empty terms aren't part of the plan
             still = [r.label() for r in research.requirements
                      if not any(o in done_sim for o in r.options)]
             if still:

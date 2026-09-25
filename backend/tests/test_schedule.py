@@ -235,3 +235,19 @@ def test_api(client, schedule_store):
                                             "preferred_days": "TR"})
     assert r.status_code == 200 and r.json()["options"]
     assert client.post("/api/timetable", json={"term": "Fall 1999", "courses": ["CS3358"]}).status_code == 404
+
+
+def test_roadmap_skips_a_term_with_nothing_offered(schedule_store, txst_web):
+    """If none of the remaining courses has a Fall 2026 section, that term is
+    left empty and planning continues in Spring (it used to stop)."""
+    from app.advising.pipeline import advise
+    raw = _advise_raw(completed=["CS1428", "CS2308", "CS2315", "CS2318", "CS3339", "CS3358",
+                                 "MATH2471", "MATH2358", "PHIL1305"])
+    with start_trace():
+        done = advise(raw)
+    roadmap = done["schedule"]["roadmap"]
+    assert roadmap[0] == {"term": FALL, "courses": [], "hours": 0, "failed": []}
+    assert roadmap[1]["term"] == "Spring 2027" and roadmap[1]["courses"]
+    # CS3360 has only ever been offered in Fall, so it waits for Fall 2027.
+    assert "CS3360" not in roadmap[1]["courses"]
+    assert "CS3360" in next(t["courses"] for t in roadmap if t["term"] == "Fall 2027")

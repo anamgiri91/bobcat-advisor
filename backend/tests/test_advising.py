@@ -220,14 +220,28 @@ def test_catalog_year_mismatch_is_a_conflict(txst_web):
 # ---------------------------------------------------------------------------
 
 def test_audit(txst_web):
-    _, _, _, _, _, result = _pipeline({**SOPHOMORE, "completed": [*SOPHOMORE["completed"], "CS4371"]})
-    d = result.to_dict()
-    assert d["counts"]["done"] == 3                     # CS1428, CS2308, MATH2471
+    _, _, _, _, _, result = _pipeline(SOPHOMORE)
+    assert result.counts()["done"] == 3                 # CS1428, CS2308, MATH2471
     assert result.total_hours == 120
-    assert result.hours_completed == 4 + 3 + 4 + 3
+    assert result.hours_completed == 4 + 3 + 4
+    assert "MATH2358" in result.behind_plan              # plan puts it in first-year spring
+
+    _, _, _, _, _, result = _pipeline({**SOPHOMORE, "completed": [
+        *SOPHOMORE["completed"], "MATH2358", "CS3358", "CS4332"]})
+    assert result.counts()["done"] == 5
     pool = result.pools[0]
     assert pool.hours_done == 3 and pool.hours_left == 3 and pool.status == "remaining"
-    assert "MATH2358" in result.behind_plan              # plan puts it in first-year spring
+    assert result.behind_plan == []
+
+
+def test_implied_prerequisites_count_as_passed(txst_web):
+    raw = {**SOPHOMORE, "completed": [*SOPHOMORE["completed"], "CS4371"]}
+    _, flags = build_profile(raw)
+    profile, _, _, _, _, result = _pipeline(raw)
+    assert {"CS3358", "MATH2358"} <= set(profile.completed)      # CS4371 requires CS3358
+    assert any(f.startswith("Counted") and "CS3358" in f for f in flags)
+    assert result.counts()["done"] == 5
+    assert "MATH2358" not in result.behind_plan
 
 
 def test_schedule_respects_prereqs_load_and_requirements(txst_web):
