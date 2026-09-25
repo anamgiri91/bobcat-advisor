@@ -3,7 +3,7 @@ mcp_server.py
 =============
 Exposes Bobcat Advisor's specialist tools over the Model Context Protocol, so
 any MCP client (Claude Desktop, Claude Code, IDE agents) can query TXST CS
-course and professor data directly.
+course data directly.
 
 The tools are the same functions the in-app agents call — the MCP client's
 model becomes one more orchestrator over them. `ask_advisor` runs the full
@@ -52,13 +52,6 @@ from app.tracing import start_trace  # noqa: E402
 mcp = FastMCP("bobcat-advisor")
 
 
-def _prof(name: str) -> str:
-    matches = registry().match_professors(name)
-    if not matches:
-        raise ValueError(f"No reviews for '{name}'. Known: {', '.join(registry().professors)}")
-    return matches[0]
-
-
 def _course(code: str) -> str:
     matches = registry().match_courses(code)
     if not matches:
@@ -67,17 +60,12 @@ def _course(code: str) -> str:
 
 
 @mcp.tool()
-def search_reviews(query: str, professor: str | None = None, course: str | None = None,
-                   k: int = 6) -> list[dict]:
-    """Hybrid (semantic + keyword) search over student reviews and Reddit posts.
-    Optionally filter by professor name and/or course (e.g. "CS3358" or "data structures")."""
-    filters = SearchFilters(
-        professors=[_prof(professor)] if professor else None,
-        courses=[_course(course)] if course else None,
-        chunk_types=["review", "reddit"],
-    )
+def search_catalog(query: str, k: int = 6) -> list[dict]:
+    """Hybrid (semantic + keyword) search over the official TXST CS course catalog,
+    e.g. "which course covers compilers" or "machine learning"."""
     return [{"source": source_label(r["metadata"]), "text": r["text"]}
-            for r in get_index().search(query, k=min(k, 15), filters=filters)]
+            for r in get_index().search(query, k=min(k, 15),
+                                        filters=SearchFilters(chunk_types=["catalog"]))]
 
 
 @mcp.tool()

@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     conversation_id: uuid.UUID | None = None
-    source_filter: str | None = None  # "rmp" | "coursicle" | "reddit" | "official" | None
+    source_filter: str | None = None  # "official" | None (only the catalog is indexed)
 
 
 class Citation(BaseModel):

@@ -4,14 +4,13 @@
  */
 
 const AGENT_LABELS = {
-  reviews: "Searching reviews",
-  stats: "Computing review stats",
+  search: "Searching the catalog",
   catalog: "Checking the catalog",
   planner: "Building your plan",
 };
 
 const INTENT_LABELS = {
-  professor_info: "Professor question",
+  instructor: "About an instructor (not answered)",
   compare: "Comparison",
   course_info: "Course question",
   prereq: "Prerequisites",
@@ -36,7 +35,7 @@ export default function AgentTrace({ message }) {
 
   const agentNames = plan?.agents || [];
   const writing = streaming && content;
-  const entities = [...(plan?.professors || []), ...(plan?.courses || [])];
+  const entities = plan?.courses || [];
 
   return (
     <ul className="font-mono text-[0.7rem] space-y-1 px-5 pt-3">

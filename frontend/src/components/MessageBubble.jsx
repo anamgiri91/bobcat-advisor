@@ -4,12 +4,9 @@ import AgentTrace from "./AgentTrace";
 import RichText from "./RichText";
 
 const KIND_LABELS = {
-  stats: "stats",
   plan: "planner",
   prereq: "prereqs",
   catalog: "catalog",
-  review: "review",
-  reddit: "reddit",
 };
 
 function VerificationBadge({ verification, mode }) {

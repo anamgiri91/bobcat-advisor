@@ -7,22 +7,11 @@ This file does not implement chunking or cleaning itself — it imports
 those responsibilities from chunker.py and cleaner.py respectively.
 
 Pipeline steps:
-  1. Walk documents/<subdir>/*.txt
-  2. Route each subdirectory to the correct chunker  (chunker.py)
-  3. Deduplicate chunks — two stages (see below)
-  4. Run all cleaning passes                         (cleaner.py)
+  1. Walk documents/<subdir>/*.txt (only documents/official/ is ingested)
+  2. Route each subdirectory to its chunker          (chunker.py)
+  3. Drop byte-identical duplicates (content-hash ids)
+  4. Normalise metadata                              (cleaner.py)
   5. Save to JSONL and/or upsert into ChromaDB
-
-DEDUPLICATION
--------------
-Stage A — full-text MD5 hash:
-  Catches exact duplicates where the entire chunk text is byte-for-byte
-  identical. This is the only dedup stage now.
-
-  Stage B (cross-source body fingerprint) was removed because it was
-  collapsing reviews from coursicle/ and rmp/ that shared the same text
-  but carried different metadata (grade, date, year level, major). Those
-  differences are useful context for the LLM, so we keep both copies.
 
 Usage
 -----
@@ -81,28 +70,17 @@ def ingest_all(documents_dir: Path) -> list[dict]:
             print(f"  {path.name:<30} {len(file_chunks):>4} chunks")
             raw_chunks.extend(file_chunks)
 
-    # --- Step 3: two-stage deduplication ------------------------------------
-
-    # Stage A: full-text MD5 hash — catches byte-identical duplicates
+    # --- Step 3: drop byte-identical duplicates -----------------------------
     seen_ids: set[str] = set()
-    after_stage_a: list[dict] = []
+    unique: list[dict] = []
     for chunk in raw_chunks:
         if chunk["id"] not in seen_ids:
             seen_ids.add(chunk["id"])
-            after_stage_a.append(chunk)
-
-    # Stage B removed: cross-source body dedup was collapsing reviews from
-    # coursicle/ and rmp/ that shared the same text but had different metadata
-    # (grade, date, year level, major). Removing it keeps all unique-ID chunks
-    # so every professor has full coverage across both sources.
-    unique = after_stage_a
-
-    stage_a_dropped = len(raw_chunks) - len(after_stage_a)
+            unique.append(chunk)
 
     print(f"\n{'─'*50}")
     print(f"Raw chunks  : {len(raw_chunks)}")
-    print(f"After dedup : {len(unique)}"
-          f"  (−{stage_a_dropped} exact duplicates)")
+    print(f"After dedup : {len(unique)}  (−{len(raw_chunks) - len(unique)} exact duplicates)")
 
     # --- Step 4: clean ------------------------------------------------------
     print("\nRunning cleaning passes...")
@@ -118,12 +96,6 @@ def _print_report(report: dict) -> None:
     print(f"\n{'─'*50}")
     print("CLEANING REPORT")
     print(f"{'─'*50}")
-    print(f"  Junk chunks dropped     : {report.get('junk_dropped', 0)}")
-    for ex in report.get("junk_examples", []):
-        print(f"    ↳ {ex!r}")
-    print(f"  Truncated (flagged)     : {report.get('truncated_flagged', 0)}")
-    print(f"  Short < 50w (flagged)   : {report.get('short_flagged', 0)}")
-    print(f"  Missing dates filled    : {report.get('date_filled', 0)}")
     print(f"  Course codes normalised : {report.get('courses_normalised', 0)}")
     print(f"{'─'*50}")
 
@@ -142,7 +114,7 @@ def save_jsonl(chunks: list[dict], out_path: Path) -> None:
 
 
 def ingest_to_chroma(chunks: list[dict],
-                     collection_name: str = "txstate_cs_reviews",
+                     collection_name: str = "txstate_cs_catalog",
                      persist_dir: str = "./chroma_db") -> None:
     """
     Embed and upsert all chunks into a local ChromaDB collection.
@@ -178,7 +150,7 @@ def ingest_to_chroma(chunks: list[dict],
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Chunk, clean, and ingest the TXST professor review corpus",
+        description="Chunk, clean, and ingest the TXST course catalog",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

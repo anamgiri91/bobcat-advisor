@@ -117,11 +117,6 @@ function Schedule({ schedule }) {
                 <li key={r}>{r}</li>
               ))}
             </ul>
-            {c.review_count > 0 && (
-              <p className="font-mono text-[0.65rem] text-muted mt-1">
-                {c.review_count} reviews · difficulty {c.difficulty ?? "–"}/5 · quality {c.quality ?? "–"}/5
-              </p>
-            )}
             {c.conditions.length > 0 && <p className="text-[0.7rem] text-amber-700 mt-1">Check: {c.conditions.join("; ")}</p>}
           </div>
         ))}

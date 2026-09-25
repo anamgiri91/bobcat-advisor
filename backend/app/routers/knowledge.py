@@ -1,12 +1,12 @@
 """
 routers/knowledge.py
 =====================
-Structured, LLM-free endpoints over the knowledge layer. They back the
-Planner view in the frontend and double as the tool surface
+Structured, LLM-free endpoints over the course catalog. They back the
+Planner and Advisor views in the frontend and double as the tool surface
 for the MCP server.
 
-  GET /api/courses/{code}                 catalog entry, prereq tree, unlocks,
-                                          course-level review stats
+  GET  /api/courses                       every catalog course
+  GET  /api/courses/{code}                catalog entry, prereq tree, unlocks
   POST /api/plan  {"completed": ["CS1428", ...]}
 """
 
@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field
 
 from ..knowledge import catalog as cat
 from ..knowledge.corpus import registry
-from ..knowledge.stats import compute_stats
 
 router = APIRouter(prefix="/api", tags=["knowledge"])
 
@@ -44,7 +43,6 @@ def course_detail(code: str):
         **course.to_dict(),
         "prereq_tree": cat.prereq_chain(course.code),
         "unlocks": cat.unlocks(course.code),
-        "stats": compute_stats(None, course.code),
     }
 
 

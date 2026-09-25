@@ -20,11 +20,6 @@ def golden():
     return load_cases(EVALS / "golden.jsonl")
 
 
-@pytest.fixture(scope="module")
-def retrieval(golden):
-    return eval_retrieval(golden)
-
-
 def _check(results: dict, floors: dict) -> None:
     failures = [
         f"{k}: {results.get(k)} < {v}" for k, v in floors.items()
@@ -45,9 +40,10 @@ def test_tools(golden):
     _check(eval_tools(golden), BASELINE["tools"])
 
 
-def test_retrieval_pipeline(retrieval):
-    _check(retrieval["pipeline"], BASELINE["retrieval_pipeline"])
+def test_retrieval_bm25(golden):
+    """Keyword leg alone: needs no embedding model, so it always runs."""
+    _check(eval_retrieval(golden, mode="bm25"), BASELINE["retrieval_bm25"])
 
 
-def test_retrieval_unfiltered(retrieval):
-    _check(retrieval["unfiltered"], BASELINE["retrieval_unfiltered"])
+def test_retrieval_hybrid(golden):
+    _check(eval_retrieval(golden), BASELINE["retrieval_hybrid"])

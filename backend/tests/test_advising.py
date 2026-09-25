@@ -370,3 +370,17 @@ def test_recommendations_never_name_instructors(txst_web):
         done = list(run(SOPHOMORE))[-1]
     assert all("professors" not in c for c in done["schedule"]["courses"])
     assert "best-rated" not in done["answer"].lower()
+
+
+def test_workload_caps_upper_division_courses(txst_web):
+    from app.advising.profile import course_level
+    raw = {"year": "junior", "target_credits": 18, "gpa": 3.5,
+           "completed": ["CS1428", "CS2308", "MATH2471", "MATH2358", "CS2318", "CS2315",
+                         "PHIL1305", "CS3358"]}
+    profile, _, _, report, verified, result = _pipeline(raw)
+    plan = plan_schedule(profile, verified, result, report)
+    assert sum(course_level(c.code) >= 3 for c in plan.courses) <= 3
+    low, _, _, report, verified, result = _pipeline({**raw, "gpa": 2.1})
+    plan = plan_schedule(low, verified, result, report)
+    assert sum(course_level(c.code) >= 3 for c in plan.courses) <= 2
+    assert any("upper-division" in d["reason"] for d in plan.deferred)

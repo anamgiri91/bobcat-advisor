@@ -14,8 +14,9 @@ It plays three advisor sub-roles:
                 it unlocks (critical path) + where the catalog's four-year
                 plan puts it + match with the student's interests - a
                 penalty for courses well above their year
-  workload      fills up to the target credit load, capping high-difficulty
-                courses (from course-level review stats) per term
+  workload      fills up to the target credit load, capping the number of
+                upper-division (3000/4000-level) courses per term, and fewer
+                for a student whose GPA suggests a lighter load
 
 Without verified degree requirements (catalog unreachable), it falls back
 to the prerequisite graph alone and says so.
@@ -27,14 +28,16 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from ..knowledge import catalog as cat
-from ..knowledge.stats import compute_stats
 from ..tracing import span
 from .audit import AuditResult, _year_of, course_hours
 from .factcheck import CONFLICT, FactCheckReport
 from .profile import TERMS, StudentProfile, course_level
 from .research import ResearchResult
 
-HARD_DIFFICULTY = 3.5
+# Upper-division (3000/4000-level) courses allowed per term. A course-level
+# proxy for workload: the app keeps no ratings or reviews.
+MAX_UPPER_DIVISION = 3
+MAX_UPPER_DIVISION_LOW_GPA = 2
 MAX_ROADMAP_TERMS = 8
 
 INTEREST_KEYWORDS: dict[str, list[str]] = {
@@ -92,9 +95,6 @@ class Recommendation:
     group: str = ""                   # requirement/pool id it counts toward
     reasons: list[str] = field(default_factory=list)
     score: float = 0.0
-    difficulty: float | None = None
-    quality: float | None = None
-    review_count: int = 0
     conditions: list[str] = field(default_factory=list)
     conflict: bool = False
 
@@ -126,8 +126,6 @@ class SchedulePlan:
         lines = [head]
         for c in self.courses:
             line = f"- {c.code} {c.title} ({c.hours} hrs, {c.kind}: {c.requirement})"
-            if c.review_count:
-                line += f" | {c.review_count} reviews, difficulty {c.difficulty}/5"
             line += " | why: " + "; ".join(c.reasons)
             if c.conditions:
                 line += " | check: " + "; ".join(c.conditions)
@@ -220,7 +218,6 @@ class _Planner:
                  report: FactCheckReport):
         self.profile, self.research, self.audit, self.report = profile, research, audit, report
         self.interests = interest_terms(profile)
-        self._stats: dict[str, dict] = {}
         self.seq_pos: dict[str, tuple[int, int]] = {}
         for tp in research.sequence:
             y = _year_of(tp.year)
@@ -228,11 +225,6 @@ class _Planner:
                 continue
             for item in tp.items:
                 self.seq_pos.setdefault(item, (y, TERMS.index(tp.term) if tp.term in TERMS else 0))
-
-    def stats(self, code: str) -> dict:
-        if code not in self._stats:
-            self._stats[code] = compute_stats(None, code)
-        return self._stats[code]
 
     def title(self, code: str) -> str:
         if code in self.research.courses:
@@ -322,9 +314,10 @@ class _Planner:
             scored.append((score, cand, reasons, conditions))
         scored.sort(key=lambda x: (-x[0], course_level(x[1].code), x[1].code))
 
-        max_hard = 1 if (self.profile.gpa is not None and self.profile.gpa < 2.5) else 2
+        low_gpa = self.profile.gpa is not None and self.profile.gpa < 2.5
+        max_upper = MAX_UPPER_DIVISION_LOW_GPA if low_gpa else MAX_UPPER_DIVISION
         picks: list[Recommendation] = []
-        hours, hard, groups = 0, 0, set()
+        hours, upper, groups = 0, 0, set()
         pool_hours = dict(pools_left)
         target = self.profile.target_credits
         for score, cand, reasons, conditions in scored:
@@ -335,22 +328,17 @@ class _Planner:
                 continue
             if cand.kind == "elective" and pool_hours.get(cand.group, 0) <= 0:
                 continue
-            st = self.stats(cand.code)
-            diff = st.get("avg_difficulty")
-            if diff is not None and diff >= HARD_DIFFICULTY and st["review_count"] >= 3:
-                if hard >= max_hard:
+            if course_level(cand.code) >= 3:
+                if upper >= max_upper:
                     deferred.append({"code": cand.code, "reason": f"balancing workload: already "
-                                     f"{hard} high-difficulty course{'s' if hard > 1 else ''} "
-                                     f"(reviewers rate it {diff}/5)"})
+                                     f"{upper} upper-division courses this term"})
                     continue
-                hard += 1
+                upper += 1
             rec = Recommendation(code=cand.code, title=self.title(cand.code), hours=h,
                                  kind=cand.kind, requirement=cand.requirement, group=cand.group,
                                  reasons=reasons,
                                  score=score, conditions=conditions, conflict=cand.conflict)
             if detailed:
-                rec.difficulty, rec.quality = diff, st.get("avg_quality")
-                rec.review_count = st["review_count"]
                 if cand.conflict:
                     rec.conditions.append("live catalog and snapshot disagree on this requirement")
             picks.append(rec)

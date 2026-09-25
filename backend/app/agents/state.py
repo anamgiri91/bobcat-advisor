@@ -10,16 +10,18 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
-INTENTS = ("professor_info", "compare", "course_info", "prereq", "plan", "off_topic")
+INTENTS = ("course_info", "compare", "prereq", "plan", "instructor", "off_topic")
 
 # Which specialist agents run for each intent. The router can't invent new
 # agents; it only picks an intent, so the plan space stays small and testable.
+# "instructor" (questions about a specific teacher) runs nothing: the app
+# doesn't share opinions or ratings about individual people.
 AGENTS_FOR_INTENT: dict[str, list[str]] = {
-    "professor_info": ["reviews", "stats"],
-    "compare": ["reviews", "stats"],
-    "course_info": ["catalog", "reviews", "stats"],
+    "course_info": ["catalog", "search"],
+    "compare": ["catalog", "search"],
     "prereq": ["catalog"],
     "plan": ["planner"],
+    "instructor": [],
     "off_topic": [],
 }
 
@@ -28,11 +30,8 @@ AGENTS_FOR_INTENT: dict[str, list[str]] = {
 class QueryPlan:
     intent: str
     standalone_question: str
-    professors: list[str] = field(default_factory=list)
     courses: list[str] = field(default_factory=list)
     completed_courses: list[str] = field(default_factory=list)
-    unknown_professors: list[str] = field(default_factory=list)
-    aspects: list[str] = field(default_factory=list)
     # Set when the request must be declined before any retrieval:
     # "private_info" | "harassment" | "system_prompt"
     refusal: str | None = None
@@ -51,7 +50,7 @@ class QueryPlan:
 
 @dataclass
 class Evidence:
-    kind: str                  # review | reddit | catalog | stats | prereq | plan
+    kind: str                  # catalog | prereq | plan
     text: str
     label: str                 # human-readable source label (shown to users)
     agent: str
@@ -69,6 +68,6 @@ class Evidence:
 class AgentResult:
     agent: str
     evidence: list[Evidence] = field(default_factory=list)
-    notes: list[str] = field(default_factory=list)   # facts for the synthesizer, e.g. "no reviews for X"
+    notes: list[str] = field(default_factory=list)   # facts for the synthesizer, e.g. "X is not in the catalog"
     data: dict = field(default_factory=dict)          # structured payload for the UI
     error: str | None = None

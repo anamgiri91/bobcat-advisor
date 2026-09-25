@@ -1,25 +1,18 @@
-{"id": "x01", "category": "factual", "question": "is koh's final cumulative", "expect": {"intent": "professor_info", "professors": ["Lee Koh"], "courses": []}}
-{"id": "x02", "category": "factual", "question": "How are Dr. Seaman's labs graded in foundations 1?", "expect": {"intent": "professor_info", "professors": ["Jill Seaman"], "courses": ["CS1428"]}}
-{"id": "x03", "category": "factual", "question": "gholoom python class — is it chill?", "expect": {"intent": "professor_info", "professors": ["Husain Gholoom"], "courses": []}}
-{"id": "x04", "category": "factual", "question": "What's the vibe in Guirguis's networks class?", "expect": {"intent": "professor_info", "professors": ["Mina Guirguis"], "courses": ["CS4310"]}}
-{"id": "x05", "category": "factual", "question": "Does Komogortsev post lecture slides?", "expect": {"intent": "professor_info", "professors": ["Oleg Komogortsev"], "courses": []}}
-{"id": "x06", "category": "factual", "question": "tell me about vargas", "expect": {"intent": "professor_info", "professors": ["Edwin Vargas"], "courses": []}}
-{"id": "x07", "category": "factual", "question": "Is Qasem strict about late homework?", "expect": {"intent": "professor_info", "professors": ["Apan Qasem"], "courses": []}}
-{"id": "x08", "category": "factual", "question": "Martin Burtscher CS 5351 reviews", "expect": {"intent": "professor_info", "professors": ["Martin Burtscher"], "courses": ["CS5351"]}}
-{"id": "x09", "category": "comparison", "question": "Lehr vs Seaman for software engineering", "expect": {"intent": "compare", "professors": ["Ted Lehr", "Jill Seaman"], "courses": ["CS3398"]}}
-{"id": "x10", "category": "comparison", "question": "who's the easiest prof for assembly?", "expect": {"intent": "compare", "professors": [], "courses": ["CS2318"]}}
-{"id": "x11", "category": "comparison", "question": "I'm deciding between Gholoom and Vargas for CS3358, thoughts?", "expect": {"intent": "compare", "professors": ["Husain Gholoom", "Edwin Vargas"], "courses": ["CS3358"]}}
-{"id": "x12", "category": "comparison", "question": "Which instructor should I pick for CS 2308 if I want an A?", "expect": {"intent": "compare", "professors": [], "courses": ["CS2308"]}}
-{"id": "x13", "category": "course_info", "question": "Is Theory of Automata math heavy?", "expect": {"intent": "course_info", "professors": [], "courses": ["CS3378"]}}
-{"id": "x14", "category": "course_info", "question": "how much work is cs4380", "expect": {"intent": "course_info", "professors": [], "courses": ["CS4380"]}}
-{"id": "x15", "category": "prereq", "question": "Do I need assembly before computer architecture?", "expect": {"intent": "prereq", "professors": [], "courses": ["CS2318", "CS3339"]}}
-{"id": "x16", "category": "prereq", "question": "What classes require CS2308?", "expect": {"intent": "prereq", "professors": [], "courses": ["CS2308"]}}
-{"id": "x17", "category": "plan", "question": "I took CS1428, CS2308, CS2318 and MATH 2358 last year. What should I take next?", "expect": {"intent": "plan", "professors": [], "courses": ["CS1428", "CS2308", "CS2318"], "completed": ["CS1428", "CS2308", "CS2318", "MATH2358"]}}
-{"id": "x18", "category": "plan", "question": "Completed data structures and assembly. What are my options for next semester?", "expect": {"intent": "plan", "professors": [], "courses": ["CS3358", "CS2318"], "completed": ["CS3358", "CS2318", "CS2308", "CS1428", "MATH2358"]}}
-{"id": "x19", "category": "unanswerable", "question": "What do people think of Dr. Byron Gao?", "expect": {"intent": "professor_info", "professors": [], "courses": [], "unknown_professor": "Byron Gao"}}
-{"id": "x20", "category": "unanswerable", "question": "Is Professor Smith good for CS1428?", "expect": {"intent": "professor_info", "professors": [], "courses": ["CS1428"], "unknown_professor": "Smith"}}
-{"id": "x21", "category": "off_topic", "question": "Can you help me write my cover letter?", "expect": {"intent": "off_topic", "professors": [], "courses": []}}
-{"id": "x22", "category": "off_topic", "question": "thanks!", "expect": {"intent": "off_topic", "professors": [], "courses": []}}
-{"id": "x23", "category": "followup", "history": [{"role": "user", "content": "How is Keshav Bhandari for CS2308?"}, {"role": "assistant", "content": "Reviews of Bhandari's CS2308 say exams are difficult."}], "question": "does he give partial credit?", "expect": {"intent": "professor_info", "professors": ["Keshav Bhandari"], "courses": ["CS2308"]}}
-{"id": "x24", "category": "followup", "history": [{"role": "user", "content": "Tell me about CS3360"}, {"role": "assistant", "content": "CS3360 Computing Systems Fundamentals covers performance, scheduling, concurrency and networks."}], "question": "who teaches it best?", "expect": {"intent": "compare", "professors": [], "courses": ["CS3360"]}}
-{"id": "x25", "category": "followup", "history": [{"role": "user", "content": "What's Lehr like?"}, {"role": "assistant", "content": "Ted Lehr's CS3398 reviews mention group projects and a friendly teaching style."}], "question": "and Xiaomin Li?", "expect": {"intent": "professor_info", "professors": ["Xiaomin Li"], "courses": []}}
+{"id": "hk1", "category": "course_info", "question": "Tell me about Human Factors of Computer Systems", "expect": {"intent": "course_info", "courses": ["CS4326"]}}
+{"id": "hk2", "category": "course_info", "question": "What is covered in CS4355?", "expect": {"intent": "course_info", "courses": ["CS4355"]}}
+{"id": "hk3", "category": "topic", "question": "Which class covers digital multimedia?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS4372"]}}
+{"id": "hk4", "category": "topic", "question": "Is there a course where students do a team software project?", "expect": {"intent": "course_info", "courses": [], "retrieve_any": ["CS4398", "CS3398"]}}
+{"id": "hc1", "category": "comparison", "question": "CS4310 or CS4371, which fits a security career?", "expect": {"intent": "compare", "courses": ["CS4310", "CS4371"]}}
+{"id": "hc2", "category": "comparison", "question": "Should I take Database Systems or Data Mining?", "expect": {"intent": "compare", "courses": ["CS4332", "CS4315"]}}
+{"id": "hp1", "category": "prereq", "question": "What do I need to take before Compiler Construction?", "expect": {"intent": "prereq", "courses": ["CS4318"], "prereq_codes": ["CS3358"]}}
+{"id": "hp2", "category": "prereq", "question": "Does CS2318 unlock computer architecture?", "expect": {"intent": "prereq", "courses": ["CS2318", "CS3339"], "prereq_codes": ["CS3339"]}}
+{"id": "hn1", "category": "plan", "question": "I've passed 1428 and 2308, what can I take next?", "expect": {"intent": "plan", "courses": ["CS1428", "CS2308"], "completed": ["CS1428", "CS2308"], "eligible_must_include": ["CS3320"]}}
+{"id": "hn2", "category": "plan", "question": "I've completed CS3358 and CS2318. What am I eligible for?", "expect": {"intent": "plan", "courses": ["CS3358", "CS2318"], "completed": ["CS1428", "CS2308", "CS2318", "CS3358", "MATH2358"], "eligible_must_include": ["CS3360"]}}
+{"id": "hi1", "category": "instructor", "question": "Which prof should I pick for Operating Systems?", "expect": {"intent": "instructor", "courses": ["CS4328"], "must_decline_instructor": true}}
+{"id": "hi2", "category": "instructor", "question": "is dr. brown nice?", "expect": {"intent": "instructor", "courses": [], "must_decline_instructor": true}}
+{"id": "hi3", "category": "instructor", "question": "Who's teaching Computer Networks next spring?", "expect": {"intent": "instructor", "courses": ["CS4310"], "must_decline_instructor": true}}
+{"id": "hi4", "category": "instructor", "question": "How strict is Professor Kim about attendance?", "expect": {"intent": "instructor", "courses": [], "must_decline_instructor": true}}
+{"id": "hi5", "category": "instructor", "question": "Does Martinez give partial credit on CS3358 exams?", "expect": {"intent": "instructor", "courses": ["CS3358"], "must_decline_instructor": true}}
+{"id": "ho1", "category": "off_topic", "question": "What's the weather tomorrow?", "expect": {"intent": "off_topic", "courses": [], "must_refuse": true}}
+{"id": "ho2", "category": "off_topic", "question": "hello", "expect": {"intent": "off_topic", "courses": [], "must_refuse": false}}
+{"id": "hh1", "category": "followup", "question": "is it an upper division course?", "expect": {"intent": "course_info", "courses": ["CS4332"]}, "history": [{"role": "user", "content": "What is CS4332?"}, {"role": "assistant", "content": "CS4332 Introduction to Database Systems covers data models and query languages."}]}

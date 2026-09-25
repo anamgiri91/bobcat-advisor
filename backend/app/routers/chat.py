@@ -24,7 +24,7 @@ from ..services.protection import client_key, rate_limiter
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-VALID_SOURCE_FILTERS = {None, "rmp", "coursicle", "reddit", "official"}
+VALID_SOURCE_FILTERS = {None, "official"}
 
 
 def _guard(payload: AskRequest, request: Request) -> None:
@@ -52,8 +52,7 @@ def ask(payload: AskRequest, request: Request, db: Session = Depends(get_db)) ->
         sources=[s["label"] for s in result.get("sources", [])],
         citations=result.get("sources", []),
         latency_ms=result["latency_ms"],
-        retrieved_chunk_count=sum(1 for s in result.get("sources", [])
-                                  if s["kind"] in ("review", "reddit")),
+        retrieved_chunk_count=sum(1 for s in result.get("sources", []) if s["kind"] == "catalog"),
         intent=(result.get("plan") or {}).get("intent"),
         mode=result.get("mode"),
         verifier_pass_rate=((verification.get("claims") or {}).get("pass_rate")),

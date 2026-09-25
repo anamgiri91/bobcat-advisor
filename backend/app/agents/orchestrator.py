@@ -9,9 +9,9 @@ Runs the multi-agent pipeline for one question and yields events as it goes.
     │   Router   │  -> QueryPlan: intent, entities, standalone question
     └─────┬──────┘
           │  intent picks specialists (state.AGENTS_FOR_INTENT)
-    ┌─────▼─────────────────────────────────────────────┐
-    │ reviews │ stats │ catalog │ planner   (parallel)  │  tools only, no LLM
-    └─────┬─────────────────────────────────────────────┘
+    ┌─────▼─────────────────────────────┐
+    │ catalog │ search │ planner  (parallel) │  tools only, no LLM
+    └─────┬─────────────────────────────┘
           │  evidence, numbered [1..n]
     ┌─────▼──────┐
     │ Synthesizer│  streamed, cites [n]      (extractive fallback, no LLM)
@@ -46,7 +46,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 from ..config import settings
 from ..guardrails import REFUSALS, redact_pii
-from ..knowledge.corpus import registry
 from ..tracing import current_trace, span
 from .router import route
 from .specialists import SPECIALISTS
@@ -57,23 +56,20 @@ from .verifier import check_citations, revise, verify_claims
 MAX_EVIDENCE = 16
 _pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="agent")
 
-# Order evidence so computed facts come first (they anchor numbers), then
-# catalog/prereq facts, then opinions.
-_KIND_ORDER = {"stats": 0, "plan": 1, "prereq": 2, "catalog": 3, "review": 4, "reddit": 5}
+# Order evidence so computed facts (eligibility, prerequisite graph) come
+# before catalog text.
+_KIND_ORDER = {"plan": 0, "prereq": 1, "catalog": 2}
 
 
 def _canned_answer(plan: QueryPlan, question: str) -> str | None:
     """Answers that must not go through retrieval or an LLM."""
     if plan.refusal:
         return REFUSALS[plan.refusal]
+    if plan.intent == "instructor":
+        return REFUSALS["instructor"]
     if plan.intent == "off_topic":
         greeting = len(question.split()) <= 3 and not question.strip().endswith("?")
         return REFUSALS["greeting" if greeting else "off_topic"]
-    if plan.unknown_professors and not plan.professors:
-        names = ", ".join(plan.unknown_professors)
-        known = ", ".join(registry().professors)
-        return (f"I don't have any reviews for {names}, so I can't say what students think. "
-                f"I currently have reviews for: {known}.")
     return None
 
 
@@ -119,8 +115,6 @@ def run(question: str, history: list[dict] | None = None,
             agent_data[name] = result.data
         yield {"type": "agent", "agent": name, "status": "done", "ms": round(ms),
                "evidence": len(result.evidence), "notes": result.notes, "error": result.error}
-    if plan.unknown_professors:
-        notes.append(f"No reviews exist for {', '.join(plan.unknown_professors)}; say so.")
 
     # Deduplicate identical chunks returned by two agents, order, cap, number.
     seen: set[str] = set()
@@ -136,7 +130,7 @@ def run(question: str, history: list[dict] | None = None,
     sources = [e.to_public() for e in evidence]
     yield {"type": "sources", "sources": sources, "agent_data": agent_data}
 
-    if not any(e.kind in ("review", "reddit", "catalog", "stats", "prereq", "plan") for e in evidence):
+    if not evidence:
         yield {"type": "done", "answer": REFUSALS["no_evidence"], "sources": sources,
                "plan": plan.to_dict(), "verification": None, "mode": "no_evidence",
                "agent_data": agent_data}
