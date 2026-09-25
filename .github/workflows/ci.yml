@@ -32,7 +32,7 @@ jobs:
         # Includes tests/test_eval_gate.py: router, tools and retrieval
         # metrics must not fall below evals/baseline.json. Coverage below
         # the floor fails the build.
-        run: pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-fail-under=88
+        run: pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-fail-under=90
       - name: Eval report
         if: always()
         run: python -m evals.run_eval
@@ -66,6 +66,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   docker:
