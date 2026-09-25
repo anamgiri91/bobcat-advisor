@@ -93,3 +93,23 @@ class FeedbackRequest(BaseModel):
 class FeedbackResponse(BaseModel):
     message_id: uuid.UUID
     helpful: bool
+
+
+# ---------------------------------------------------------------------------
+# Course recommendations (advising pipeline)
+# ---------------------------------------------------------------------------
+
+class AdviseRequest(BaseModel):
+    major: str = Field("Computer Science", max_length=80)
+    degree: str = Field("BS", max_length=6)
+    year: str = Field("freshman", max_length=20)          # freshman..senior, or 1-4
+    semester: str = Field("Fall", max_length=10)          # term being planned
+    catalog_year: str | None = Field(None, max_length=9)  # "2025-2026"
+    completed: list[str] = Field(default_factory=list, max_length=80)
+    in_progress: list[str] = Field(default_factory=list, max_length=12)
+    gpa: float | None = Field(None, ge=0, le=4)
+    target_credits: int = Field(15, ge=3, le=21)
+    interests: list[str] = Field(default_factory=list, max_length=8)
+    career_goal: str = Field("", max_length=200)
+    minor: str = Field("", max_length=80)
+    notes: str = Field("", max_length=1000)

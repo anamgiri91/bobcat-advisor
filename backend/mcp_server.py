@@ -6,9 +6,10 @@ any MCP client (Claude Desktop, Claude Code, IDE agents) can query TXST CS
 course and professor data directly.
 
 The tools are the same functions the in-app agents call — the MCP client's
-model becomes one more orchestrator over them. Only `ask_advisor` runs the
-full pipeline (and so needs an LLM API key); every other tool is deterministic
-and works offline.
+model becomes one more orchestrator over them. `ask_advisor` runs the full
+Q&A pipeline (needs an LLM API key) and `recommend_courses` runs the advising
+pipeline (browses the TXST catalog; template memo without a key); every other
+tool is deterministic and works offline.
 
 Install into a SEPARATE environment (the mcp SDK needs a newer Starlette than
 the API's FastAPI pin):
@@ -40,6 +41,7 @@ sys.path.insert(0, str(BACKEND))
 
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
+from app.advising.pipeline import advise  # noqa: E402
 from app.agents.orchestrator import answer  # noqa: E402
 from app.agents.specialists import source_label  # noqa: E402
 from app.knowledge import catalog as cat  # noqa: E402
@@ -133,6 +135,22 @@ def ask_advisor(question: str) -> dict:
         out = answer(question)
     return {"answer": out.get("answer"), "mode": out.get("mode"),
             "sources": [f"[{s['n']}] {s['label']}" for s in out.get("sources", [])]}
+
+
+@mcp.tool()
+def recommend_courses(completed: list[str], year: str = "freshman", major: str = "Computer Science",
+                      degree: str = "BS", semester: str = "Fall", interests: list[str] | None = None,
+                      target_credits: int = 15, in_progress: list[str] | None = None,
+                      catalog_year: str | None = None) -> dict:
+    """Recommend next-term courses for a TXST student. Browses the live TXST catalog for the
+    degree requirements, fact-checks them, audits progress, and plans a balanced schedule plus a
+    roadmap. Returns the advising memo, schedule, audit and fact-check report."""
+    with start_trace():
+        done = advise({"completed": completed, "year": year, "major": major, "degree": degree,
+                       "semester": semester, "interests": interests or [],
+                       "target_credits": target_credits, "in_progress": in_progress or [],
+                       "catalog_year": catalog_year})
+    return {k: done.get(k) for k in ("answer", "schedule", "audit", "factcheck", "flags", "visits")}
 
 
 if __name__ == "__main__":
