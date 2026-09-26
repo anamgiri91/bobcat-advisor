@@ -54,8 +54,9 @@ class FetchError(RuntimeError):
 # URL policy
 # ---------------------------------------------------------------------------
 
-def is_allowed(url: str) -> bool:
-    """HTTPS, default port, no credentials, host inside the allowlist."""
+def is_allowed(url: str, domains: list[str] | tuple[str, ...] | None = None) -> bool:
+    """HTTPS, default port, no credentials, host inside the allowlist
+    (WEB_ALLOWED_DOMAINS unless a caller passes its own)."""
     try:
         u = urlparse(url)
     except ValueError:
@@ -65,7 +66,8 @@ def is_allowed(url: str) -> bool:
     if u.port not in (None, 443):
         return False
     host = u.hostname.lower().rstrip(".")
-    return any(host == d or host.endswith("." + d) for d in settings.WEB_ALLOWED_DOMAINS)
+    allowed = settings.WEB_ALLOWED_DOMAINS if domains is None else domains
+    return any(host == d or host.endswith("." + d) for d in allowed)
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +114,7 @@ class ParsedPage:
     links: list[tuple[str, str]]          # (anchor text, absolute href)
     tables: list[Table]
     blocks: list[str]                     # text of each div.courseblock
+    description: str = ""                 # <meta name=description> / og:description
 
 
 class _Parser(HTMLParser):
@@ -134,6 +137,7 @@ class _Parser(HTMLParser):
         self._link_parts: list[str] = []
         self._block_depth = 0          # div nesting inside the current courseblock
         self._block_parts: list[str] = []
+        self.description = ""
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -144,6 +148,11 @@ class _Parser(HTMLParser):
         if tag == "title":
             self._in_title = True
         if self._skip:
+            return
+        if tag == "meta" and not self.description:
+            name = (a.get("name") or a.get("property") or "").lower()
+            if name in ("description", "og:description"):
+                self.description = _clean(a.get("content") or "")
             return
         if tag in _BLOCK:
             self._emit("\n")
@@ -247,7 +256,7 @@ def parse_html(html: str, base_url: str = "") -> ParsedPage:
     lines = [_clean(line) for line in "".join(p.text_parts).split("\n")]
     text = "\n".join(line for line in lines if line)
     return ParsedPage(title=_clean("".join(p.title_parts)), text=text, links=p.links,
-                      tables=p.tables, blocks=[b for b in p.blocks if b])
+                      tables=p.tables, blocks=[b for b in p.blocks if b], description=p.description)
 
 
 # ---------------------------------------------------------------------------
@@ -385,19 +394,26 @@ class Browser:
     """
 
     def __init__(self, max_pages: int | None = None,
-                 on_visit: Callable[[Visit], None] | None = None):
+                 on_visit: Callable[[Visit], None] | None = None,
+                 allowed_domains: list[str] | tuple[str, ...] | None = None):
         self.max_pages = max_pages if max_pages is not None else settings.WEB_MAX_PAGES
         self.on_visit = on_visit
+        self.allowed_domains = allowed_domains          # None = WEB_ALLOWED_DOMAINS
         self.visits: list[Visit] = []
         self.pages: dict[str, Page] = {}
         self._network_fetches = 0
+        self._lock = threading.Lock()                   # fetch() may run on several threads
+
+    def allows(self, url: str) -> bool:
+        return is_allowed(url, self.allowed_domains)
 
     @property
     def enabled(self) -> bool:
         return settings.WEB_BROWSING_ENABLED
 
     def _record(self, visit: Visit) -> None:
-        self.visits.append(visit)
+        with self._lock:
+            self.visits.append(visit)
         if self.on_visit:
             self.on_visit(visit)
 
@@ -405,8 +421,8 @@ class Browser:
         if not self.enabled:
             raise FetchError("web browsing is disabled (WEB_BROWSING_ENABLED=false)")
         t0 = time.perf_counter()
-        if not is_allowed(url):
-            self._record(Visit(url, False, None, 0, False, "blocked: not an allowed TXST address"))
+        if not self.allows(url):
+            self._record(Visit(url, False, None, 0, False, "blocked: not an allowed address"))
             raise FetchError(f"blocked URL: {url}")
         cached = _cache.get(url)
         if cached is not None:
@@ -414,10 +430,13 @@ class Browser:
             self._record(Visit(url, True, cached.status, (time.perf_counter() - t0) * 1000, True,
                                title=cached.title))
             return cached
-        if self._network_fetches >= self.max_pages:
+        with self._lock:
+            over_budget = self._network_fetches >= self.max_pages
+            if not over_budget:
+                self._network_fetches += 1
+        if over_budget:
             self._record(Visit(url, False, None, 0, False, "page budget used"))
             raise FetchError(f"page budget ({self.max_pages}) used")
-        self._network_fetches += 1
 
         with span("web.fetch", url=url) as s:
             current = url
@@ -426,8 +445,8 @@ class Browser:
                     status, headers, body = _get_fetcher().get(current, settings.WEB_TIMEOUT_S)
                     if status in (301, 302, 303, 307, 308) and headers.get("location"):
                         nxt = urljoin(current, headers["location"])
-                        if not is_allowed(nxt):
-                            raise FetchError(f"redirect to a non-TXST address blocked: {nxt}")
+                        if not self.allows(nxt):
+                            raise FetchError(f"redirect to a non-allowed address blocked: {nxt}")
                         current = nxt
                         continue
                     break
@@ -458,7 +477,8 @@ class Browser:
         if current != url:
             _cache.put(Page(url, page.status, page.parsed, page.fetched_at, page.raw,
                             page.content_type))
-        self.pages[url] = page
+        with self._lock:
+            self.pages[url] = page
         self._record(Visit(url, True, status, (time.perf_counter() - t0) * 1000, False,
                            title=page.title))
         return page

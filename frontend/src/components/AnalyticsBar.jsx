@@ -16,7 +16,9 @@ export default function AnalyticsBar() {
 
   return (
     <div className="hidden md:flex items-center gap-4 px-4 py-1.5 font-mono text-[0.7rem] text-white/60 border-t border-white/10">
-      <span>{total_questions} questions answered</span>
+      <span>
+        {total_questions} question{total_questions === 1 ? "" : "s"} answered
+      </span>
       {avg_latency_ms != null && <span>· avg {avg_latency_ms}ms</span>}
       {helpfulPct != null && <span>· {helpfulPct}% rated helpful</span>}
       {verifier_pass_rate != null && (

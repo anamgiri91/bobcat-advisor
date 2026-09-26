@@ -137,3 +137,15 @@ class Scenario(BaseModel):
 class WhatIfRequest(BaseModel):
     profile: AdviseRequest
     scenarios: list[Scenario] = Field(..., min_length=1, max_length=4)
+
+
+# ---------------------------------------------------------------------------
+# Career paths
+# ---------------------------------------------------------------------------
+
+class CareerRequest(BaseModel):
+    career: str = Field(..., min_length=2, max_length=120)   # a career id or the student's words
+    completed: list[str] = Field(default_factory=list, max_length=80)
+    in_progress: list[str] = Field(default_factory=list, max_length=12)
+    include_certifications: bool = True
+    free_only: bool = False

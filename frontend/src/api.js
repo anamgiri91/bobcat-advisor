@@ -1,15 +1,32 @@
 const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
+// A static host answers unknown paths with index.html; parsing that as JSON
+// gives "Unexpected token '<'". Say what's actually wrong instead.
+export const NOT_API =
+  "Got a web page instead of data from the API. The frontend's VITE_API_BASE_URL is probably missing or wrong (see docs/DEPLOY.md).";
+
+const isHtml = (res) => (res.headers?.get?.("content-type") || "").includes("text/html");
+
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch (e) {
+    throw e instanceof TypeError ? new Error(UNREACHABLE) : e;
+  }
+  if (isHtml(res)) throw new Error(NOT_API);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail || `Request failed: ${res.status}`);
   }
-  return res.json();
+  try {
+    return await res.json();
+  } catch (e) {
+    throw e instanceof SyntaxError ? new Error(NOT_API) : e;
+  }
 }
 
 // Render's free plan sleeps when idle; the first request can take ~a minute.
@@ -67,6 +84,7 @@ async function postStream(path, body, onEvent, signal, timing = {}) {
       throw failure(e);
     }
     gotEvent();
+    if (isHtml(res)) throw new Error(NOT_API);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       const detail = Array.isArray(err.detail) ? err.detail.map((d) => d.msg).join("; ") : err.detail;
@@ -122,9 +140,16 @@ function adviseStream(profile, onEvent, signal, timing) {
   return postStream("/advise/stream", profile, onEvent, signal, timing);
 }
 
+/** POST /career/stream: career path, TXST courses and checked outside resources. */
+function careerStream(body, onEvent, signal, timing) {
+  return postStream("/career/stream", body, onEvent, signal, timing);
+}
+
 export const api = {
   askStream,
   adviseStream,
+  careerStream,
+  careerPaths: () => request("/career/paths"),
 
   listConversations: () => request("/history"),
   getConversation: (id) => request(`/history/${id}`),

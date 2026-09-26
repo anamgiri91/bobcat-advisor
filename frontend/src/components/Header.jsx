@@ -19,6 +19,7 @@ const LOGO_SVG = `
 const TABS = [
   { id: "chat", label: "Ask" },
   { id: "advisor", label: "Advisor" },
+  { id: "careers", label: "Careers" },
   { id: "planner", label: "Planner" },
 ];
 
@@ -35,7 +36,7 @@ export default function Header({ tab, onTab }) {
             TXST CS course advising, grounded in the official catalog
           </p>
         </div>
-        <nav className="ml-auto flex gap-1" aria-label="Views">
+        <nav className="ml-auto flex flex-wrap gap-1" aria-label="Views">
           {TABS.map((t) => (
             <button
               key={t.id}

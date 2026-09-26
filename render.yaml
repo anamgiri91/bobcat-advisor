@@ -56,6 +56,12 @@ services:
       # Optional: USD per 1M input/output tokens per model, for the cost dashboard.
       - key: LLM_PRICES
         sync: false
+      # Optional: web search for the Careers tab's resource scout. Without a
+      # key it uses the curated list; every link is checked either way.
+      - key: SEARCH_PROVIDER
+        value: brave
+      - key: BRAVE_API_KEY
+        sync: false
 
       # Model IDs live in env vars so a provider deprecation is a config change.
       # Check /api/health?deep=true after changing them.

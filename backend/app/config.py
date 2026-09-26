@@ -152,6 +152,14 @@ class Settings:
     # The catalog changes once a year; pages are cached across requests.
     WEB_CACHE_TTL_S: float = float(os.environ.get("WEB_CACHE_TTL_S", "21600"))
 
+    # Career paths (app/careers): the resource scout searches the web when a
+    # provider is configured ("brave": Brave Search API, key in BRAVE_API_KEY
+    # or a secrets manager), else it starts from the curated seed list. Either
+    # way the link checker opens every candidate before it's recommended.
+    SEARCH_PROVIDER: str = os.environ.get("SEARCH_PROVIDER", "").strip().lower()
+    BRAVE_API_KEY: str | None = get_secret("BRAVE_API_KEY")
+    CAREER_MAX_PAGES: int = int(os.environ.get("CAREER_MAX_PAGES", "24"))
+
     # Timetable solver: "auto" (OR-Tools if installed, else exact search),
     # "ortools", or "search" (no OR-Tools import: saves ~85MB of memory).
     TIMETABLE_SOLVER: str = os.environ.get("TIMETABLE_SOLVER", "auto")

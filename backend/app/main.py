@@ -34,7 +34,7 @@ from sqlalchemy import text
 from . import llm, secrets, telemetry
 from .config import settings
 from .database import Base, engine
-from .routers import advise, analytics, chat, feedback, history, knowledge, schedule
+from .routers import advise, analytics, career, chat, feedback, history, knowledge, schedule
 
 log = logging.getLogger("bobcat")
 _warm = {"ready": False, "error": None}
@@ -126,6 +126,7 @@ app.include_router(analytics.router)
 app.include_router(knowledge.router)
 app.include_router(advise.router)
 app.include_router(schedule.router)
+app.include_router(career.router)
 
 
 def _db_ok() -> bool:

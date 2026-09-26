@@ -95,3 +95,25 @@ describe("stream failures never leave the UI spinning", () => {
     expect(events).toEqual([["error", { message: "boom" }]]);
   });
 });
+
+describe("misconfigured API address", () => {
+  it("explains an HTML page instead of 'Unexpected token <'", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true, status: 200, headers: { get: () => "text/html" }, json: async () => { throw new SyntaxError("Unexpected token '<'"); },
+    })));
+    await expect(api.listCourses()).rejects.toThrow(/VITE_API_BASE_URL/);
+    await expect(api.askStream("q", null, null, () => {})).rejects.toThrow(/VITE_API_BASE_URL/);
+  });
+
+  it("also catches HTML without a content type", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => { throw new SyntaxError("x"); } })));
+    await expect(api.careerPaths()).rejects.toThrow(/VITE_API_BASE_URL/);
+  });
+
+  it("posts career requests to the career stream", async () => {
+    const fetchMock = vi.fn(async () => streamResponse(["event: done\ndata: {}\n\n"]));
+    vi.stubGlobal("fetch", fetchMock);
+    await api.careerStream({ career: "ml_engineer" }, () => {});
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/career\/stream$/);
+  });
+});

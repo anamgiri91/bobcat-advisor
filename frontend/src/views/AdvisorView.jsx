@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import CoursePicker from "../components/CoursePicker";
 import RichText from "../components/RichText";
+import { AgentSteps, Badge, Card, INPUT, Label, Section, StepList, SubmitBar, Toggle, Visits, WakingNotice } from "../components/ui";
 
 /**
  * Course recommendations from the seven-agent advising pipeline: the student
@@ -270,74 +272,15 @@ export function WhatIf({ body, courses }) {
 
 const INTERESTS = ["AI", "Machine learning", "Data", "Security", "Web", "Games", "Systems", "Software", "Theory", "Mobile"];
 const YEARS = ["freshman", "sophomore", "junior", "senior"];
-const INPUT = "w-full text-sm bg-white border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-maroon/50";
 
-function Label({ children }) {
-  return <span className="block font-display text-[0.7rem] uppercase tracking-wider text-muted mb-1">{children}</span>;
-}
-
-function Card({ title, children, right }) {
-  return (
-    <section className="bg-white border border-border rounded-xl p-4 shadow-card">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <h3 className="font-display font-bold text-sm">{title}</h3>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Badge({ tone = "muted", children }) {
-  const tones = {
-    good: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    warn: "bg-amber-50 text-amber-800 border-amber-200",
-    bad: "bg-red-50 text-red-700 border-red-200",
-    muted: "bg-cream text-muted border-border",
-  };
-  return <span className={`text-[0.65rem] font-mono border rounded-full px-2 py-0.5 ${tones[tone]}`}>{children}</span>;
-}
-
-function AgentSteps({ agents, running }) {
-  return (
-    <ol className="space-y-1.5">
-      {AGENTS.map((a) => {
-        const s = agents[a.id];
-        const state = s?.status === "done" ? "done" : s?.status === "start" ? "active" : "pending";
-        const dot =
-          state === "done" ? (s.error ? "bg-amber-500" : "bg-emerald-500") : state === "active" ? "bg-gold animate-pulse" : "bg-border";
-        return (
-          <li key={a.id} className="flex gap-2 text-xs">
-            <span className={`mt-1.5 inline-block w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-            <div className={state === "pending" && running ? "opacity-50" : ""}>
-              <span className="font-display font-bold">{a.label}</span>
-              <span className="text-muted"> · {s?.summary || a.desc}</span>
-              {s?.ms != null && <span className="font-mono text-[0.65rem] text-muted"> · {s.ms}ms</span>}
-              {s?.error && <p className="text-[0.7rem] text-amber-700">{s.error}</p>}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function Visits({ visits }) {
-  if (!visits.length) return null;
-  return (
-    <ul className="mt-3 space-y-1 font-mono text-[0.65rem] max-h-40 overflow-y-auto thin-scroll">
-      {visits.map((v, i) => (
-        <li key={i} className="flex gap-2">
-          <span className={v.ok ? "text-emerald-600" : "text-red-600"}>{v.ok ? "✓" : "✗"}</span>
-          <a href={v.url} target="_blank" rel="noreferrer" className="truncate hover:underline" title={v.url}>
-            {v.url.replace(/^https:\/\//, "")}
-          </a>
-          <span className="text-muted shrink-0">{v.ok ? (v.cached ? "cached" : `${v.ms}ms`) : v.error}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+const DELIVERABLES = [
+  ["Recommended courses", "for your next term, checked against the live catalog"],
+  ["Degree audit", "what's done, in progress and left"],
+  ["Weekly timetable", "clash-free sections around your work hours"],
+  ["Roadmap", "term by term to graduation, aware of when courses run"],
+  ["What-if planning", "switch major, add a minor, fail a course"],
+  ["Advising notes", "with every claim checked against its source"],
+];
 
 function Schedule({ schedule }) {
   return (
@@ -469,7 +412,7 @@ function FactCheck({ report }) {
   );
 }
 
-export default function AdvisorView() {
+export default function AdvisorView({ onCareer }) {
   const [catalog, setCatalog] = useState([]);
   const [form, setForm] = useState({
     major: "Computer Science",
@@ -575,192 +518,187 @@ export default function AdvisorView() {
     }
   }
 
-  const cs = catalog.filter((c) => Number(c.code[2]) <= 4);
   const claims = run?.verification?.claims;
 
   return (
     <div className="flex-1 overflow-y-auto thin-scroll px-4 md:px-6 py-6">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] gap-6">
-        <form onSubmit={submit} className="space-y-4">
-          <p className="text-sm text-muted">
-            Tell us where you are. A team of agents reads the live TXST catalog, fact-checks it, audits your progress and
-            plans your next term.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="col-span-2">
-              <Label>Major</Label>
-              <input className={INPUT} value={form.major} onChange={set("major")} maxLength={80} required />
-            </label>
-            <label>
-              <Label>Degree</Label>
-              <select className={INPUT} value={form.degree} onChange={set("degree")}>
-                <option>BS</option>
-                <option>BA</option>
-              </select>
-            </label>
-            <label>
-              <Label>Year</Label>
-              <select className={INPUT} value={form.year} onChange={set("year")}>
-                {YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y[0].toUpperCase() + y.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <Label>Planning for</Label>
-              <select className={INPUT} value={form.semester} onChange={set("semester")}>
-                <option>Fall</option>
-                <option>Spring</option>
-                <option>Summer</option>
-              </select>
-            </label>
-            <label>
-              <Label>Year (optional)</Label>
-              <input className={INPUT} type="number" min={2024} max={2100} placeholder="next" value={form.term_year} onChange={set("term_year")} />
-            </label>
-            <label>
-              <Label>Target hours</Label>
-              <input className={INPUT} type="number" min={3} max={21} value={form.target_credits} onChange={set("target_credits")} />
-            </label>
-            <label>
-              <Label>GPA (optional)</Label>
-              <input className={INPUT} type="number" step="0.01" min={0} max={4} value={form.gpa} onChange={set("gpa")} />
-            </label>
-            <label>
-              <Label>Catalog year</Label>
-              <input className={INPUT} placeholder="2025-2026" value={form.catalog_year} onChange={set("catalog_year")} maxLength={9} />
-            </label>
-          </div>
-
-          <div>
-            <Label>CS courses you've passed</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {cs.map((c) => (
-                <button
-                  type="button"
-                  key={c.code}
-                  onClick={() => toggle("completed", c.code)}
-                  title={c.title}
-                  className={`text-xs font-mono px-2.5 py-1 rounded-full border transition-colors ${
-                    form.completed.has(c.code) ? "bg-maroon text-white border-maroon" : "bg-white border-border text-muted hover:border-maroon/40"
-                  }`}
-                >
-                  {c.code}
-                </button>
-              ))}
+      <div className="max-w-6xl mx-auto grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-6">
+        <form onSubmit={submit} className="space-y-3">
+          <Section n={1} title="About you">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="col-span-2">
+                <Label>Major</Label>
+                <input className={INPUT} value={form.major} onChange={set("major")} maxLength={80} required />
+              </label>
+              <label>
+                <Label>Degree</Label>
+                <select className={INPUT} value={form.degree} onChange={set("degree")}>
+                  <option>BS</option>
+                  <option>BA</option>
+                </select>
+              </label>
+              <label>
+                <Label>Year</Label>
+                <select className={INPUT} value={form.year} onChange={set("year")}>
+                  {YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y[0].toUpperCase() + y.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <Label hint="optional">GPA</Label>
+                <input className={INPUT} type="number" step="0.01" min={0} max={4} placeholder="e.g. 3.4" value={form.gpa} onChange={set("gpa")} />
+              </label>
+              <label>
+                <Label hint="optional">Catalog year</Label>
+                <input className={INPUT} placeholder="Current" value={form.catalog_year} onChange={set("catalog_year")} maxLength={9} />
+              </label>
             </div>
-          </div>
-          <label className="block">
-            <Label>Other courses passed (math, core, transfer)</Label>
-            <input className={INPUT} placeholder="MATH 2471, MATH 2358, ENG 1310" value={form.other} onChange={set("other")} />
-          </label>
-          <label className="block">
-            <Label>In progress this term</Label>
-            <input className={INPUT} placeholder="CS 2308" value={form.in_progress} onChange={set("in_progress")} />
-          </label>
+          </Section>
 
-          <div>
-            <Label>Interests</Label>
+          <Section n={2} title="Courses you've passed">
+            <CoursePicker
+              catalog={catalog}
+              selected={form.completed}
+              onToggle={(code) => toggle("completed", code)}
+              onClear={() => setForm((f) => ({ ...f, completed: new Set() }))}
+            />
+            <label className="block">
+              <Label hint="math, core, transfer">Other courses passed</Label>
+              <input className={INPUT} placeholder="MATH 2471, MATH 2358, ENG 1310" value={form.other} onChange={set("other")} />
+            </label>
+            <label className="block">
+              <Label>Taking this term</Label>
+              <input className={INPUT} placeholder="CS 2308" value={form.in_progress} onChange={set("in_progress")} />
+            </label>
+          </Section>
+
+          <Section n={3} title="Next term">
+            <div className="grid grid-cols-3 gap-3">
+              <label>
+                <Label>Term</Label>
+                <select className={INPUT} value={form.semester} onChange={set("semester")}>
+                  <option>Fall</option>
+                  <option>Spring</option>
+                  <option>Summer</option>
+                </select>
+              </label>
+              <label>
+                <Label>Year</Label>
+                <input className={INPUT} type="number" min={2024} max={2100} placeholder="Next" value={form.term_year} onChange={set("term_year")} />
+              </label>
+              <label>
+                <Label>Hours</Label>
+                <input className={INPUT} type="number" min={3} max={21} value={form.target_credits} onChange={set("target_credits")} />
+              </label>
+            </div>
+            <details className="group rounded-lg border border-border px-3 py-2">
+              <summary className="cursor-pointer text-xs font-display font-bold list-none flex items-center justify-between">
+                Your week, for the timetable
+                <span className="text-muted font-body font-normal group-open:hidden">optional ▾</span>
+              </summary>
+              <div className="space-y-3 mt-3">
+                <div>
+                  <Label>Preferred days</Label>
+                  <div className="flex gap-1.5">
+                    {WEEKDAYS.map((d) => (
+                      <Toggle key={d} on={form.preferred_days.has(d)} onClick={() => toggle("preferred_days", d)}>
+                        {DAY_NAMES[d]}
+                      </Toggle>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <label>
+                    <Label>Not before</Label>
+                    <select className={INPUT} value={form.earliest_start} onChange={set("earliest_start")}>
+                      <option value="">any</option>
+                      {["08:00", "09:00", "10:00", "11:00", "12:00"].map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <Label>Not after</Label>
+                    <select className={INPUT} value={form.latest_end} onChange={set("latest_end")}>
+                      <option value="">any</option>
+                      {["14:00", "15:00", "17:00", "19:00", "21:00"].map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <Label>Format</Label>
+                    <select className={INPUT} value={form.modality} onChange={set("modality")}>
+                      <option value="">any</option>
+                      <option value="in person">in person</option>
+                      <option value="online">online</option>
+                      <option value="hybrid">hybrid</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="block">
+                  <Label hint="one per line">Busy times (work, commute)</Label>
+                  <textarea className={INPUT} rows={2} placeholder={"TR 12:00-17:00\nSat 9-13"} value={form.busy} onChange={set("busy")} />
+                </label>
+              </div>
+            </details>
+          </Section>
+
+          <Section n={4} title="Goals" hint="optional">
             <div className="flex flex-wrap gap-1.5">
               {INTERESTS.map((i) => (
-                <button
-                  type="button"
-                  key={i}
-                  onClick={() => toggle("interests", i)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    form.interests.has(i) ? "bg-gold/30 border-gold text-ink" : "bg-white border-border text-muted hover:border-gold"
-                  }`}
-                >
+                <Toggle key={i} tone="gold" on={form.interests.has(i)} onClick={() => toggle("interests", i)}>
                   {i}
-                </button>
+                </Toggle>
               ))}
             </div>
-          </div>
-          <label className="block">
-            <Label>Career goal</Label>
-            <input className={INPUT} placeholder="e.g. machine learning engineer" value={form.career_goal} onChange={set("career_goal")} maxLength={200} />
-          </label>
-          <fieldset className="border border-border rounded-xl p-3 space-y-3">
-            <legend className="px-1 font-display text-[0.7rem] uppercase tracking-wider text-muted">Your week (for the timetable)</legend>
-            <div>
-              <Label>Preferred days</Label>
-              <div className="flex gap-1.5">
-                {WEEKDAYS.map((d) => (
-                  <button
-                    type="button"
-                    key={d}
-                    onClick={() => toggle("preferred_days", d)}
-                    className={`text-xs font-mono w-9 py-1 rounded-full border ${
-                      form.preferred_days.has(d) ? "bg-maroon text-white border-maroon" : "bg-white border-border text-muted"
-                    }`}
-                  >
-                    {DAY_NAMES[d]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <label>
-                <Label>Not before</Label>
-                <select className={INPUT} value={form.earliest_start} onChange={set("earliest_start")}>
-                  <option value="">any</option>
-                  {["08:00", "09:00", "10:00", "11:00", "12:00"].map((t) => <option key={t}>{t}</option>)}
-                </select>
-              </label>
-              <label>
-                <Label>Not after</Label>
-                <select className={INPUT} value={form.latest_end} onChange={set("latest_end")}>
-                  <option value="">any</option>
-                  {["14:00", "15:00", "17:00", "19:00", "21:00"].map((t) => <option key={t}>{t}</option>)}
-                </select>
-              </label>
-              <label>
-                <Label>Format</Label>
-                <select className={INPUT} value={form.modality} onChange={set("modality")}>
-                  <option value="">any</option>
-                  <option value="in person">in person</option>
-                  <option value="online">online</option>
-                  <option value="hybrid">hybrid</option>
-                </select>
-              </label>
-            </div>
             <label className="block">
-              <Label>Busy times (work, commute), one per line</Label>
-              <textarea className={INPUT} rows={2} placeholder={"TR 12:00-17:00\nSat 9-13"} value={form.busy} onChange={set("busy")} />
+              <Label>Career goal</Label>
+              <input className={INPUT} placeholder="e.g. machine learning engineer" value={form.career_goal} onChange={set("career_goal")} maxLength={200} />
             </label>
-          </fieldset>
-          <label className="block">
-            <Label>Anything else</Label>
-            <textarea className={INPUT} rows={2} placeholder="I work 20 hours a week…" value={form.notes} onChange={set("notes")} maxLength={1000} />
-          </label>
+            {onCareer && (
+              <button type="button" onClick={() => onCareer(form.career_goal, form.completed)} className="text-xs text-maroon hover:underline">
+                Plan the skills for a career, with outside courses and certifications →
+              </button>
+            )}
+            <label className="block">
+              <Label>Anything else</Label>
+              <textarea className={INPUT} rows={2} placeholder="I work 20 hours a week…" value={form.notes} onChange={set("notes")} maxLength={1000} />
+            </label>
+          </Section>
 
-          <button
-            type="submit"
-            disabled={run?.running}
-            className="w-full font-display font-bold text-sm uppercase tracking-wide bg-maroon text-white rounded-xl py-3 hover:bg-maroon-light disabled:opacity-60"
-          >
-            {run?.running ? "Agents at work…" : "Get my recommendations"}
-          </button>
-          {error && <p className="text-sm text-red-600 font-mono">{error}</p>}
+          <SubmitBar busy={run?.running} label="Get my recommendations" busyLabel="Agents at work…" error={error} />
         </form>
 
         <div ref={resultsRef} className="space-y-4 min-w-0 scroll-mt-4">
           {!run && (
-            <div className="bg-white border border-dashed border-border rounded-xl p-6 text-sm text-muted">
-              <p className="font-display font-bold text-ink mb-2">How it works</p>
-              <AgentSteps agents={{}} running={false} />
+            <div className="bg-white border border-border rounded-xl p-5 md:p-6 space-y-5">
+              <div>
+                <p className="font-display font-bold text-lg leading-tight">Your next term, planned by a team of agents</p>
+                <p className="text-sm text-muted mt-1">
+                  Fill in the form and press <span className="font-semibold text-ink">Get my recommendations</span>. You can
+                  watch each agent work, and you'll get:
+                </p>
+              </div>
+              <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-2">
+                {DELIVERABLES.map(([t, d]) => (
+                  <li key={t} className="flex gap-2 text-sm">
+                    <span className="text-maroon mt-0.5" aria-hidden>✓</span>
+                    <span>
+                      <span className="font-semibold">{t}</span> <span className="text-muted">{d}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div>
+                <p className="font-display text-[0.7rem] uppercase tracking-wider text-muted mb-2">How it works</p>
+                <StepList steps={AGENTS} />
+              </div>
             </div>
           )}
           {run && (
             <Card title="Agents" right={run.visits.length > 0 && <Badge>{run.visits.length} pages</Badge>}>
-              {run.waking && run.running && Object.keys(run.agents).length === 0 && (
-                <p className="text-xs text-muted mb-2" role="status">
-                  Waking up the server (it sleeps when idle; this can take up to a minute)…
-                </p>
-              )}
-              <AgentSteps agents={run.agents} running={run.running} />
+              {run.waking && run.running && Object.keys(run.agents).length === 0 && <WakingNotice />}
+              <AgentSteps steps={AGENTS} agents={run.agents} running={run.running} />
               <Visits visits={run.visits} />
             </Card>
           )}

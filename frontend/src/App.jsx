@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Header from "./components/Header";
 import AdvisorView from "./views/AdvisorView";
+import CareerView from "./views/CareerView";
 import ChatView from "./views/ChatView";
 import PlannerView from "./views/PlannerView";
 
-const TABS = ["chat", "advisor", "planner"];
+const TABS = ["chat", "advisor", "careers", "planner"];
 
 function tabFromHash() {
   const t = window.location.hash.replace("#", "");
@@ -12,7 +13,7 @@ function tabFromHash() {
 }
 
 export default function App() {
-  // Deep links: #advisor / #planner pick a view, ?q=... asks a question.
+  // Deep links: #advisor / #careers / #planner pick a view, ?q=... asks a question.
   const [tab, setTabState] = useState(tabFromHash);
   const [pendingQuestion, setPendingQuestion] = useState(() => {
     const q = new URLSearchParams(window.location.search).get("q");
@@ -32,6 +33,13 @@ export default function App() {
     setTabState(t);
   }
 
+  // The advisor hands its career goal and courses to the Careers view.
+  const [careerSeed, setCareerSeed] = useState({ key: 0, goal: "", completed: [] });
+  function planCareer(goal, completed) {
+    setCareerSeed((s) => ({ key: s.key + 1, goal: goal || "", completed: [...(completed || [])] }));
+    setTab("careers");
+  }
+
   // Other views hand a question to the chat ("Ask the advisor →").
   function ask(question) {
     setPendingQuestion(question);
@@ -45,7 +53,10 @@ export default function App() {
       <div className={tab === "chat" ? "flex-1 flex overflow-hidden" : "hidden"}>
         <ChatView pendingQuestion={pendingQuestion} onPendingHandled={() => setPendingQuestion(null)} />
       </div>
-      {tab === "advisor" && <AdvisorView />}
+      {tab === "advisor" && <AdvisorView onCareer={planCareer} />}
+      {tab === "careers" && (
+        <CareerView key={careerSeed.key} initialGoal={careerSeed.goal} initialCompleted={careerSeed.completed} />
+      )}
       {tab === "planner" && <PlannerView onAsk={ask} />}
     </div>
   );

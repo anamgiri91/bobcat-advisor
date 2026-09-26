@@ -28,6 +28,11 @@ them. Not affiliated with Texas State University.
   only, split at headings, tagged with URL, catalog year and fetch date,
   instructor details removed from syllabi, deadlines stored as dated
   facts, refreshed by a weekly workflow (see below).
+- **Career paths.** Pick a role (ML engineer, security, data, games…) or
+  describe one: agents map it to skills, find the TXST courses that teach
+  each (in the order you can take them), and search for outside courses
+  and certifications for what the catalog doesn't cover, opening every
+  link to check it's live and on topic before showing it (see below).
 - **What-if planning.** Switch major, add a minor, fail a course or change
   the load and see how the graduation term moves.
 - **Production-ready.** OpenTelemetry traces and metrics with a latency and
@@ -324,9 +329,33 @@ Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_cour
 | GET | `/api/schedule/sections?course=&term=` | Sections for a course (no instructor data) |
 | GET | `/api/offerings/{code}` | "Usually offered in …" with counts |
 | POST | `/api/timetable` | `{term, courses, preferred_days, earliest_start, latest_end, busy, modality}` → clash-free timetables |
+| GET | `/api/career/paths` | Career paths the app knows |
+| POST | `/api/career/stream` | SSE: `{career, completed, in_progress, include_certifications, free_only}` → skills, TXST courses, checked outside resources, roadmap |
+| POST | `/api/career` | Same as JSON |
 | POST | `/api/advise/whatif` | `{profile, scenarios: [{type: switch_major/add_minor/fail_course/change_load, ...}]}` → graduation term per scenario |
 | GET | `/api/health/live` | Liveness (process up) |
 | GET | `/api/health` | Readiness: database, index, LLM, telemetry |
+
+## Career paths (Careers tab)
+
+"I want to be a machine learning engineer: what should I take, and what
+do I learn outside class?" Seven agents answer it:
+
+| Agent | Does | LLM? |
+|---|---|---|
+| Career analyst | Maps the goal to one of 9 defined careers and its core/helpful skills (rules first; an LLM may only pick from the list) | fallback only |
+| Course mapper | Finds the TXST courses whose catalog title or description names each skill, keeps the sentence as evidence, ranks them, adds gateway prerequisites (e.g. CS 3358 unlocks most 4000-level courses) and marks each done / take next / later | no |
+| Gap finder | Skill coverage: a course named for it, a passing mention, or nothing in the undergraduate CS catalog | no |
+| Resource scout | For each gap (and a few core skills to go deeper on): a web search when `SEARCH_PROVIDER=brave` and `BRAVE_API_KEY` are set, kept only on known providers' sites, plus a curated seed list (`app/careers/data/resources.json`) | no |
+| Link checker | Opens every candidate with the sandboxed browser (HTTPS, provider allowlist, redirects re-checked, page budget) in parallel. Verified = loaded and about the skill; a curated link a site won't let a bot check is shown as "not checked"; dead links, off-topic pages and unopenable search results are dropped | no |
+| Mentor | A short roadmap from those facts (template without an LLM) | yes |
+| Verifier | Removes any roadmap sentence naming a course code it wasn't given, or a URL | no |
+
+Rules the data follows: courses that "will not satisfy CS major"
+requirements (e.g. CS 1309) and graduate courses are never recommended;
+skills taught outside CS (linear algebra, statistics) are never mapped to
+an invented TXST course number; costs are coarse labels and the UI says
+to check the provider's site; outside links are marked as not affiliated.
 
 ## What-if planning
 

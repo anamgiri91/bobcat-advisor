@@ -24,6 +24,7 @@ In each service's **Environment** tab, fill in the `sync: false` values:
 | API | `GEMINI_API_KEY` | your key (or add it as a **Secret File** named `GEMINI_API_KEY`: app/secrets.py reads `/etc/secrets/GEMINI_API_KEY`) |
 | API | `CORS_ORIGINS` | the frontend's host, e.g. `bobcat-advisor-web.onrender.com` |
 | API | `OTEL_EXPORTER_OTLP_ENDPOINT` | optional: your OTLP endpoint (e.g. Grafana Cloud) |
+| API | `BRAVE_API_KEY` | optional: Brave Search API key, so the Careers tab searches the web for outside courses (without it, it uses the curated list) |
 | API | `LLM_PRICES` | optional: `{"model": [usd_per_1M_input, usd_per_1M_output]}` from the provider's pricing page |
 | Web | `VITE_API_BASE_URL` | the API's URL + `/api`, e.g. `https://bobcat-advisor-api.onrender.com/api` |
 
@@ -51,6 +52,7 @@ Then open the frontend URL. That's the demo link.
 | `could not translate host name "dpg-...-a"` | `DATABASE_URL` points at a database in another region/workspace, or one that was deleted. Use the Blueprint's database (`fromDatabase`), or the database's *External* URL. |
 | `FATAL: database migrations failed 6 times` | The database isn't reachable; same checks as above. The entrypoint retries for ~1 minute first. |
 | Health `models_unlisted` non-empty | The key can't use a configured model: change `LLM_*_MODEL` and check `?deep=true`. |
+| `Unexpected token '<', "<!doctype "... is not valid JSON`, or "Got a web page instead of data from the API" | The frontend was built without the right `VITE_API_BASE_URL`, so it asked its own static site for `/api/...` and got `index.html`. Set it to the API's URL + `/api` on the static site and redeploy it. |
 | Frontend loads but requests fail with CORS errors | `CORS_ORIGINS` doesn't match the frontend host. |
 | First request after a while takes ~30–60s | The free plan sleeps when idle. Upgrade for an always-on demo. |
 | The database disappears after some weeks | Free Render Postgres databases expire; check Render's current terms and upgrade to keep one. |
