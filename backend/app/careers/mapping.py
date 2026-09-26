@@ -186,3 +186,78 @@ def experience(completed: set[str]) -> list[dict]:
         if course and code not in done:
             out.append({"code": code, "title": course.title, "why": why})
     return out
+
+
+# ---------------------------------------------------------------------------
+# Topic questions in the chat ("How do I learn AI?")
+# ---------------------------------------------------------------------------
+
+def topic_courses(skill_ids: list[str], limit: int = 4) -> list[str]:
+    """TXST courses for the topic: the main skill's courses first; within a
+    skill, courses named for it before passing mentions, lower level first."""
+    ranked: list[tuple[int, int, int, str]] = []
+    for rank, sid in enumerate(skill_ids):
+        for m in matches_for(sid):
+            ranked.append((rank, 0 if m.in_title else 1, cat.get_course(m.code).level, m.code))
+    out: list[str] = []
+    for *_, code in sorted(ranked):
+        if code not in out:
+            out.append(code)
+    return out[:limit]
+
+
+def _path(codes: list[str]) -> list[str]:
+    """Prerequisites to reach these courses, lowest level first (the first
+    listed option of each "one of" group; non-CS courses kept as named)."""
+    seen: set[str] = set()
+
+    def walk(code: str) -> None:
+        course = cat.get_course(code)
+        for g in course.prereqs if course else []:
+            if g.conditional or not g.courses:
+                continue
+            first = g.courses[0]
+            if first not in seen:
+                seen.add(first)
+                walk(first)
+    for c in codes:
+        walk(c)
+    return sorted(seen - set(codes), key=lambda c: (re.search(r"\d", c).group(0), c))
+
+
+def _outside_matches(skill_ids: list[str]) -> tuple[list[str], list[str]]:
+    """Catalog courses on the topic that aren't recommended: graduate level,
+    and courses that don't count toward a CS degree."""
+    eligible = {c.code for c in _eligible_catalog()}
+    grad, no_credit = [], []
+    for course in cat.load_catalog().values():
+        if course.code in eligible or course.code in _PLACEMENT:
+            continue
+        text = f"{course.title} {course.description}"
+        if any(_pattern(kw).search(text) for sid in skill_ids for kw in skills()[sid].keywords):
+            (grad if course.level >= 5 else no_credit).append(f"{course.code} {course.title}")
+    return grad, no_credit
+
+
+def topic_summary(skill_ids: list[str], codes: list[str]) -> str:
+    """The computed answer to "how do I learn X at TXST?", as evidence text."""
+    names = ", ".join(skills()[s].name.lower() for s in skill_ids[:3])
+    lines = [f"TXST COURSES FOR {names.upper()} (computed from the catalog):"]
+    for code in codes:
+        course = cat.get_course(code)
+        prereqs = [" or ".join(g.courses) for g in course.prereqs if not g.conditional]
+        lines.append(f"- {code} {course.title}" + (f" — needs {', '.join(prereqs)}" if prereqs else ""))
+    path = _path(codes)
+    if path:
+        lines.append("- Path to get there: " + " → ".join(path) + " → then the courses above.")
+    grad, no_credit = _outside_matches(skill_ids)
+    if grad:
+        lines.append("- Graduate level (5000+): " + "; ".join(grad) + ".")
+    if no_credit:
+        lines.append("- Doesn't count toward a CS degree: " + "; ".join(no_credit) + ".")
+    gaps = [skills()[s].name for s in skill_ids if not matches_for(s)]
+    if gaps:
+        lines.append("- Not taught in the undergraduate CS catalog: " + ", ".join(gaps) + ".")
+    lines.append("- Outside class: the Careers tab lists checked online courses and certifications "
+                 "for this area.")
+    return "\n".join(lines)

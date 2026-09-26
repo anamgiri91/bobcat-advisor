@@ -240,6 +240,8 @@ def fact_check(research: ResearchResult, profile: StudentProfile,
             sequence=research.sequence,
             courses={k: v for k, v in research.courses.items() if f"course:{k}" in keep},
             errors=research.errors,
+            notes=research.notes,
+            titles=research.titles,
             method=research.method,
         )
         s.attributes.update(report.summary)

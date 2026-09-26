@@ -89,6 +89,10 @@ class Cell:
     tag: str
     classes: set[str]
     text: str
+    # The cell's content starts inside an indented block (CourseLeaf's
+    # `blockindent` / margin-left): options of a "Select N hours" group,
+    # "or" alternatives and the "& lab" half of a paired row are indented.
+    indented: bool = False
 
 
 @dataclass
@@ -133,6 +137,8 @@ class _Parser(HTMLParser):
         self._row: Row | None = None
         self._cell: Cell | None = None
         self._cell_parts: list[str] = []
+        self._indent_stack: list[tuple[str, bool]] = []   # open tags inside the current cell
+        self._cell_has_text = False
         self._link_href: str | None = None
         self._link_parts: list[str] = []
         self._block_depth = 0          # div nesting inside the current courseblock
@@ -154,6 +160,12 @@ class _Parser(HTMLParser):
             if name in ("description", "og:description"):
                 self.description = _clean(a.get("content") or "")
             return
+        if self._cell is not None and tag not in _VOID and tag not in ("td", "th"):
+            style = (a.get("style") or "").replace(" ", "").lower()
+            indent = "blockindent" in classes or "margin-left" in style
+            self._indent_stack.append((tag, indent))
+            if indent:
+                self._emit(" ")            # "General Physics I<span>and ... Lab</span>"
         if tag in _BLOCK:
             self._emit("\n")
         if tag == "table":
@@ -167,6 +179,9 @@ class _Parser(HTMLParser):
         elif tag in ("td", "th") and self._row is not None:
             self._cell = Cell(tag=tag, classes=classes, text="")
             self._cell_parts = []
+            self._indent_stack = []
+            self._cell_has_text = False
+            return
         elif tag == "span" and self._cell is not None and "courselistcomment" in classes:
             self._cell.classes.add("courselistcomment")
         elif tag == "a" and a.get("href"):
@@ -187,6 +202,11 @@ class _Parser(HTMLParser):
             self._in_title = False
         if self._skip:
             return
+        if self._cell is not None:
+            for i in range(len(self._indent_stack) - 1, -1, -1):
+                if self._indent_stack[i][0] == tag:
+                    del self._indent_stack[i:]
+                    break
         if tag in _BLOCK:
             self._emit("\n")
         if tag in ("td", "th") and self._cell is not None and self._row is not None:
@@ -220,6 +240,9 @@ class _Parser(HTMLParser):
             return
         if self._skip:
             return
+        if self._cell is not None and not self._cell_has_text and data.strip():
+            self._cell_has_text = True
+            self._cell.indented = any(indent for _, indent in self._indent_stack)
         self._emit(data)
 
     def _emit(self, s: str) -> None:

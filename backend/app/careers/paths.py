@@ -87,6 +87,29 @@ def resources() -> tuple[Resource, ...]:
 
 
 @lru_cache(maxsize=1)
+def _topic_patterns() -> tuple[tuple[re.Pattern, tuple[str, ...]], ...]:
+    raw = json.loads((DATA / "careers.json").read_text()).get("topics", {})
+    # Longest phrase first: "machine learning" before "learning"-free "ml".
+    return tuple((re.compile(rf"(?<![\w.-]){re.escape(k)}(?![\w-])", re.IGNORECASE), tuple(v))
+                 for k, v in sorted(raw.items(), key=lambda kv: -len(kv[0])))
+
+
+def find_topics(text: str) -> list[str]:
+    """Skill ids for the areas a question names ("How do I learn AI?" ->
+    ai, ml, deep_learning), in order of importance, without duplicates."""
+    hits: list[tuple[int, int, str]] = []
+    for pattern, skill_ids in _topic_patterns():
+        m = pattern.search(text)
+        if m:
+            hits.extend((m.start(), rank, sid) for rank, sid in enumerate(skill_ids))
+    out: list[str] = []
+    for _, _, sid in sorted(hits, key=lambda h: (h[1], h[0])):
+        if sid not in out:
+            out.append(sid)
+    return out
+
+
+@lru_cache(maxsize=1)
 def allowed_domains() -> tuple[str, ...]:
     """Hosts the link checker may open: the seed list's, nothing else. Search
     results on other sites are dropped rather than fetched."""

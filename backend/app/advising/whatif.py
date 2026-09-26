@@ -136,6 +136,8 @@ def _plan(profile: StudentProfile, browser: Browser, minor: str | None = None,
             sequence=verified.sequence,
             courses={**extra.courses, **verified.courses},
             errors=verified.errors + extra.errors,
+            notes=verified.notes + extra.notes,
+            titles={**extra.titles, **verified.titles},
             method=verified.method,
         )
     result = audit(profile, verified, report)

@@ -39,6 +39,9 @@ class QueryPlan:
     refusal: str | None = None
     injection_suspected: bool = False
     method: str = "rules"           # "llm" | "rules"
+    # Areas the question names without naming a course ("How do I learn AI?"):
+    # skill ids from app/careers, used to pick the courses that teach them.
+    topics: list[str] = field(default_factory=list)
 
     @property
     def agents(self) -> list[str]:
@@ -52,7 +55,7 @@ class QueryPlan:
 
 @dataclass
 class Evidence:
-    kind: str                  # catalog | prereq | plan | dates | a knowledge-base kind (app/kb/sources.py)
+    kind: str                  # catalog | prereq | plan | topic | dates | a knowledge-base kind (app/kb/sources.py)
     text: str
     label: str                 # human-readable source label (shown to users)
     agent: str

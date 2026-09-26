@@ -28,6 +28,8 @@ from __future__ import annotations
 import re
 
 from .. import llm
+from ..careers.mapping import topic_courses
+from ..careers.paths import find_topics, skills
 from ..config import settings
 from ..guardrails import classify_request, looks_like_injection
 from ..knowledge.catalog import expand_completed
@@ -241,5 +243,24 @@ def route(question: str, history: list[dict] | None = None, use_llm: bool | None
 
         plan.refusal = refusal
         plan.injection_suspected = looks_like_injection(question)
-        s.attributes.update(method=plan.method, intent=plan.intent, courses=plan.courses)
+        if refusal is None:
+            _add_topics(plan, question)
+        s.attributes.update(method=plan.method, intent=plan.intent, courses=plan.courses,
+                            topics=plan.topics)
         return plan
+
+
+def _add_topics(plan: QueryPlan, question: str) -> None:
+    """A question about an area but no course ("How do I learn AI?", "best
+    classes for cybersecurity?"): use the courses that teach it. Keyword
+    search alone can't: the catalog says "Artificial Intelligence", not "AI"."""
+    if plan.courses or plan.intent not in ("course_info", "off_topic"):
+        return
+    topics = find_topics(question)
+    if not topics:
+        return
+    plan.intent = "course_info"
+    plan.topics = topics
+    plan.courses = topic_courses(topics)
+    names = ", ".join(skills()[t].name.lower() for t in topics[:3])
+    plan.standalone_question = f"{plan.standalone_question} (topics: {names})"

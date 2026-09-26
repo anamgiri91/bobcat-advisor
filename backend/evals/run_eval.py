@@ -39,7 +39,7 @@ import sys
 import time
 from pathlib import Path
 
-from app.agents.router import route_rules
+from app.agents.router import route
 from app.agents.specialists import run_catalog, run_kb, run_planner, run_search
 from app.rag.index import get_index
 
@@ -79,7 +79,12 @@ def _pct(xs: list[float], p: float) -> float | None:
 # Router
 # ---------------------------------------------------------------------------
 
-def eval_router(cases: list[dict], router=route_rules) -> dict:
+def _route_offline(question: str, history: list[dict] | None = None):
+    """Production routing (guardrails, rules, topic expansion) without an LLM."""
+    return route(question, history, use_llm=False)
+
+
+def eval_router(cases: list[dict], router=_route_offline) -> dict:
     rows = []
     for c in cases:
         e = c["expect"]
@@ -137,7 +142,7 @@ def eval_retrieval(cases: list[dict], mode: str = "hybrid", rerank: bool = False
             want = set(c["expect"].get("retrieve_any") or [])
             if not want:
                 continue
-            plan = route_rules(c["question"], c.get("history"))
+            plan = _route_offline(c["question"], c.get("history"))
             t0 = time.perf_counter()
             # The agent production uses for this intent.
             result = run_kb(plan, k=k) if plan.intent == "policy" else run_search(plan, k=k)
@@ -175,7 +180,7 @@ def eval_kb_retrieval(cases: list[dict], k: int = 4) -> dict:
         if not kinds & present:
             skipped.append(c["id"])
             continue
-        plan = route_rules(c["question"], c.get("history"))
+        plan = _route_offline(c["question"], c.get("history"))
         result = run_kb(plan, k=k) if plan.intent == "policy" else run_search(plan, k=k)
         got = [ev.kind for ev in result.evidence[:k + 2]]
         rank = next((i + 1 for i, kind in enumerate(got) if kind in kinds), None)
@@ -211,14 +216,14 @@ def eval_tools(cases: list[dict]) -> dict:
     for c in cases:
         e = c["expect"]
         if e["intent"] == "prereq" and e.get("prereq_codes"):
-            plan = route_rules(c["question"], c.get("history"))
+            plan = _route_offline(c["question"], c.get("history"))
             text = "\n".join(ev.text for ev in run_catalog(plan).evidence)
             found = [code for code in e["prereq_codes"] if code in text]
             rows.append({"id": c["id"], "kind": "prereq",
                          "ok": len(found) == len(e["prereq_codes"]),
                          "missing": sorted(set(e["prereq_codes"]) - set(found))})
         elif e["intent"] == "plan" and ("eligible_must_include" in e):
-            plan = route_rules(c["question"], c.get("history"))
+            plan = _route_offline(c["question"], c.get("history"))
             data = run_planner(plan).data
             eligible = {r["code"] for r in data.get("eligible", [])}
             miss = set(e["eligible_must_include"]) - eligible

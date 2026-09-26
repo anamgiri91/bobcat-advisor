@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import CoursePicker from "../components/CoursePicker";
+import CoursePicker, { spaced } from "../components/CoursePicker";
 import RichText from "../components/RichText";
 import { AgentSteps, Badge, Card, INPUT, Label, Section, StepList, SubmitBar, Toggle, Visits, WakingNotice } from "../components/ui";
 
@@ -298,7 +298,8 @@ function Schedule({ schedule }) {
           <div key={c.code} className="border border-border rounded-lg p-3">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display font-bold text-sm">
-                {c.code} · {c.title}
+                {[c.code, ...(c.bundle || [])].map(spaced).join(" + ")}
+                {c.title && c.title !== c.code && ` · ${c.title}`}
               </p>
               <Badge tone={c.kind === "required" ? "good" : "muted"}>{c.kind}</Badge>
               <span className="font-mono text-[0.65rem] text-muted">{c.hours} hrs</span>
@@ -335,7 +336,7 @@ function Schedule({ schedule }) {
   );
 }
 
-function Audit({ audit }) {
+function Audit({ audit, notes = [] }) {
   if (!audit.available) return null;
   const pct = audit.total_hours ? Math.min(100, Math.round((audit.hours_completed / audit.total_hours) * 100)) : null;
   return (
@@ -375,6 +376,11 @@ function Audit({ audit }) {
       ))}
       {audit.behind_plan.length > 0 && (
         <p className="text-xs text-amber-800 mt-2">Behind the suggested four-year plan on: {audit.behind_plan.join(", ")}</p>
+      )}
+      {notes.length > 0 && (
+        <ul className="text-[0.7rem] text-muted mt-2 space-y-0.5">
+          {notes.map((n) => <li key={n}>{n}</li>)}
+        </ul>
       )}
     </Card>
   );
@@ -498,6 +504,7 @@ export default function AdvisorView({ onCareer }) {
           else if (type === "agent") update((r) => ({ agents: { ...r.agents, [data.agent]: { ...r.agents[data.agent], ...data } } }));
           else if (type === "browse") update((r) => ({ visits: [...r.visits, data] }));
           else if (type === "profile") update(() => ({ flags: data.flags }));
+          else if (type === "research") update(() => ({ researchNotes: data.notes || [] }));
           else if (type === "factcheck") update(() => ({ factcheck: data }));
           else if (type === "audit") update(() => ({ audit: data.audit }));
           else if (type === "schedule") update(() => ({ schedule: data.schedule }));
@@ -728,7 +735,7 @@ export default function AdvisorView({ onCareer }) {
             <Timetable key={JSON.stringify(run.timetable.courses)} timetable={run.timetable} prefs={run.ttPrefs} />
           )}
           <div className="grid md:grid-cols-2 gap-4">
-            {run?.audit && <Audit audit={run.audit} />}
+            {run?.audit && <Audit audit={run.audit} notes={run.researchNotes} />}
             {run?.factcheck && <FactCheck report={run.factcheck} />}
           </div>
           {run?.schedule?.roadmap?.length > 0 && (
@@ -737,7 +744,7 @@ export default function AdvisorView({ onCareer }) {
                 {run.schedule.roadmap.map((t) => (
                   <li key={t.term} className="flex gap-3">
                     <span className="font-display font-bold w-32 shrink-0">{t.term}</span>
-                    <span className="font-mono">{t.courses.join(", ")}</span>
+                    <span className="font-mono">{(t.items || t.courses).map((x) => x.split(" + ").map(spaced).join(" + ")).join(", ")}</span>
                     <span className="text-muted ml-auto shrink-0">{t.hours} hrs</span>
                   </li>
                 ))}

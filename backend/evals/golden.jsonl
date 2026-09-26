@@ -83,3 +83,8 @@
 {"id": "y01", "category": "syllabus", "question": "What's the textbook for CS3358?", "expect": {"intent": "course_info", "courses": ["CS3358"], "retrieve_kind": ["syllabus"]}}
 {"id": "y02", "category": "syllabus", "question": "What does CS3358 cover week by week?", "expect": {"intent": "course_info", "courses": ["CS3358"], "retrieve_kind": ["syllabus"]}}
 {"id": "y03", "category": "syllabus", "question": "Is there a final project in CS3358?", "expect": {"intent": "course_info", "courses": ["CS3358"], "retrieve_kind": ["syllabus"]}}
+{"id": "t01", "category": "topic", "question": "How do I learn AI?", "expect": {"intent": "course_info", "courses": ["CS4346", "CS4347"], "retrieve_any": ["CS4346", "CS4347"]}}
+{"id": "t02", "category": "topic", "question": "What classes should I take for cybersecurity?", "expect": {"intent": "course_info", "courses": ["CS4371"], "retrieve_any": ["CS4371"]}}
+{"id": "t03", "category": "topic", "question": "I want to get into web development", "expect": {"intent": "course_info", "courses": ["CS3320"], "retrieve_any": ["CS3320"]}}
+{"id": "t04", "category": "topic", "question": "Which course teaches machine learning?", "expect": {"intent": "course_info", "courses": ["CS4347"], "retrieve_any": ["CS4347"]}}
+{"id": "t05", "category": "topic", "question": "Where can I learn SQL?", "expect": {"intent": "course_info", "courses": ["CS4332"], "retrieve_any": ["CS4332"]}}

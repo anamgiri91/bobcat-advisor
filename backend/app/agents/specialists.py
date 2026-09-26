@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+from ..careers.mapping import topic_summary
 from ..config import settings
 from ..kb import calendar
 from ..kb.sources import KB_KINDS, KIND_NAMES
@@ -211,6 +212,11 @@ def run_catalog(plan: QueryPlan, source_filter: str | None = None) -> AgentResul
                 evidence.append(Evidence(kind="prereq", text="\n".join(lines),
                                          label=f"Prerequisite graph — {code}", agent="catalog",
                                          metadata={"course": code}))
+        if plan.topics:
+            # Ahead of the course entries: it's the direct answer to "how do I learn X?"
+            evidence.insert(0, Evidence(kind="topic", text=topic_summary(plan.topics, plan.courses),
+                                        label="Courses for this topic — computed from the catalog",
+                                        agent="catalog"))
         s.attributes["courses"] = len(data["courses"])
         return AgentResult(agent="catalog", evidence=evidence, notes=notes, data=data)
 

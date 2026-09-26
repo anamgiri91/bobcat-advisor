@@ -128,7 +128,7 @@ def run(raw: dict) -> Iterator[dict]:
            "method": found.method,
            "requirements": len(found.requirements), "pools": len(found.pools),
            "sequence_terms": len(found.sequence), "courses": sorted(found.courses),
-           "errors": found.errors}
+           "errors": found.errors, "notes": found.notes}
     yield {"type": "agent", "agent": "researcher", "status": "done", "ms": elapsed(),
            "summary": f"{len(browser.visits)} pages, {len(found.requirements)} requirements",
            "error": "; ".join(found.errors[:2]) or None}
@@ -168,7 +168,8 @@ def run(raw: dict) -> Iterator[dict]:
         prefs = Preferences.from_raw({
             "preferred_days": profile.preferred_days, "earliest_start": profile.earliest_start,
             "latest_end": profile.latest_end, "busy": profile.busy, "modality": profile.modality})
-        timetable = build_timetable([c.code for c in plan.courses], profile.planned_term, prefs)
+        timetable = build_timetable([x for c in plan.courses for x in (c.code, *c.bundle)],
+                                    profile.planned_term, prefs)
         timetable_d = timetable.to_dict()
         yield {"type": "timetable", "timetable": timetable_d, "preferences": prefs.describe()}
         summary = (f"{len(timetable.options)} option(s)" if timetable.options else "no clash-free option")

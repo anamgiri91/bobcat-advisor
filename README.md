@@ -351,6 +351,14 @@ do I learn outside class?" Seven agents answer it:
 | Mentor | A short roadmap from those facts (template without an LLM) | yes |
 | Verifier | Removes any roadmap sentence naming a course code it wasn't given, or a URL | no |
 
+The same skill map answers topic questions in the chat: "How do I learn
+AI?" names no course, and the catalog says "Artificial Intelligence", not
+"AI", so keyword search alone misses. The router maps the words students use
+("AI", "cyber", "web dev", "SQL") to skills, picks the courses that teach
+them, and the catalog agent adds a computed summary: the courses with their
+prerequisites, the path to reach them, graduate-level and non-major courses
+on the topic (flagged, not recommended), and a pointer to the Careers tab.
+
 Rules the data follows: courses that "will not satisfy CS major"
 requirements (e.g. CS 1309) and graduate courses are never recommended;
 skills taught outside CS (linear algebra, statistics) are never mapped to

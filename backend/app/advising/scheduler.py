@@ -34,7 +34,7 @@ from ..tracing import span
 from .audit import AuditResult, _year_of, course_hours
 from .factcheck import CONFLICT, FactCheckReport
 from .profile import TERMS, StudentProfile, course_level
-from .research import ResearchResult
+from .research import ResearchResult, is_placement
 
 # Upper-division (3000/4000-level) courses allowed per term. A course-level
 # proxy for workload: the app keeps no ratings or reviews.
@@ -100,6 +100,11 @@ class Recommendation:
     score: float = 0.0
     conditions: list[str] = field(default_factory=list)
     conflict: bool = False
+    bundle: list[str] = field(default_factory=list)   # taken with it: its lab
+
+    @property
+    def label(self) -> str:
+        return " + ".join([self.code, *self.bundle])
 
 
 @dataclass
@@ -128,7 +133,7 @@ class SchedulePlan:
                    if self.mode == "prerequisites_only" else "") + ":")
         lines = [head]
         for c in self.courses:
-            line = f"- {c.code} {c.title} ({c.hours} hrs, {c.kind}: {c.requirement})"
+            line = f"- {c.label} {c.title} ({c.hours} hrs, {c.kind}: {c.requirement})"
             line += " | why: " + "; ".join(c.reasons)
             if c.conditions:
                 line += " | check: " + "; ".join(c.conditions)
@@ -187,8 +192,34 @@ def prereq_status(code: str, done: set[str], research: ResearchResult
         missing += [g for g in m if g not in missing]
         conditions += [x for x in c + other if x not in conditions]
     elif web is None and not local and not code.startswith("CS"):
-        conditions.append("prerequisites not checked (course page not read)")
+        before = series_predecessor(code, research)
+        if before and before not in expanded:
+            missing.append([before])
+        conditions.append("prerequisites not checked (course page not read)"
+                          + (f"; assumed to follow {before}" if before else ""))
     return not missing, missing, conditions
+
+
+def _title_of(code: str, research: ResearchResult) -> str:
+    if code in research.courses:
+        return research.courses[code].title
+    return next((r.titles[code] for r in research.requirements if code in r.titles),
+                research.titles.get(code, ""))
+
+
+def series_predecessor(code: str, research: ResearchResult) -> str | None:
+    """For a non-CS course whose page wasn't read: "... II" follows "... I" one
+    number earlier when both are requirements (PHYS 2326 after PHYS 2325,
+    MATH 2472 after MATH 2471). An assumption, stated as one."""
+    m = re.match(r"([A-Z]+)(\d{4})$", code)
+    if not m or not re.search(r"\bII\b", _title_of(code, research)):
+        return None
+    prev = f"{m.group(1)}{int(m.group(2)) - 1:04d}"
+    prev_title = _title_of(prev, research)
+    listed = any(prev in r.options for r in research.requirements)
+    if listed and re.search(r"\bI\b", prev_title) and not re.search(r"\bII\b", prev_title):
+        return prev
+    return None
 
 
 def _unlock_count(code: str, targets: set[str]) -> int:
@@ -207,6 +238,8 @@ class _Candidate:
     requirement: str
     group: str                        # requirement/pool id; one pick per requirement
     conflict: bool = False
+    bundle: list[str] = field(default_factory=list)
+    hours: int | None = None          # the row's hours for a lecture + lab bundle
 
 
 class _Planner:
@@ -229,13 +262,10 @@ class _Planner:
                 self.seq_pos.setdefault(item, (y, TERMS.index(tp.term) if tp.term in TERMS else 0))
 
     def title(self, code: str) -> str:
-        if code in self.research.courses:
-            return self.research.courses[code].title
-        for r in self.research.requirements:
-            if code in r.titles:
-                return r.titles[code]
+        """Live page, then the requirement table, then the snapshot; "" if unknown."""
+        title = _title_of(code, self.research)
         local = cat.get_course(code)
-        return local.title if local else code
+        return title or (local.title if local else "")
 
     def course_text(self, code: str) -> str:
         local = cat.get_course(code)
@@ -250,13 +280,16 @@ class _Planner:
                 if any(o in done for o in r.options):
                     continue
                 for o in r.options:
+                    if is_placement(o, r.titles.get(o, "")):
+                        continue            # arranged individually, see arranged()
                     out.append(_Candidate(o, "required", f"{r.section}: {r.label()}", r.id,
-                                          self.report.status(r.id) == CONFLICT))
+                                          self.report.status(r.id) == CONFLICT, list(r.bundle),
+                                          r.hours if r.bundle else None))
             for p in self.research.pools:
                 if pools_left.get(p.id, 0) <= 0:
                     continue
                 for o in p.options:
-                    if o not in done:
+                    if o not in done and not is_placement(o, _title_of(o, self.research)):
                         out.append(_Candidate(o, "elective", f"{p.section}: {p.rule}", p.id,
                                               self.report.status(p.id) == CONFLICT))
         else:
@@ -337,7 +370,7 @@ class _Planner:
             # courses until its hours are covered (checked below).
             if cand.kind != "elective" and cand.group in groups:
                 continue
-            h = course_hours(cand.code, self.research)
+            h = cand.hours or course_hours(cand.code, self.research)
             if hours + h > target + (1 if hours <= target - 3 else 0):
                 continue
             if cand.kind == "elective" and pool_hours.get(cand.group, 0) <= 0:
@@ -352,7 +385,8 @@ class _Planner:
             rec = Recommendation(code=cand.code, title=self.title(cand.code), hours=h,
                                  kind=cand.kind, requirement=cand.requirement, group=cand.group,
                                  reasons=reasons, offering=off.label() if off else "",
-                                 score=score, conditions=conditions, conflict=cand.conflict)
+                                 score=score, conditions=conditions, conflict=cand.conflict,
+                                 bundle=list(cand.bundle))
             if detailed:
                 if cand.conflict:
                     rec.conditions.append("live catalog and snapshot disagree on this requirement")
@@ -364,6 +398,17 @@ class _Planner:
             if hours >= target:
                 break
         return picks, deferred
+
+
+def arranged(research: ResearchResult, done: set[str]) -> list[str]:
+    """Unmet requirements met only by placement courses (internship, co-op,
+    research, thesis): the student arranges these, the planner doesn't."""
+    out = []
+    for r in research.requirements:
+        if not any(o in done for o in r.options) and all(
+                is_placement(o, r.titles.get(o, "")) for o in r.options):
+            out.append(r.label())
+    return out
 
 
 def _next_term(year: int, term: int) -> tuple[int, int]:
@@ -427,21 +472,28 @@ def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: Audi
                     continue
                 idle = 0
                 failed = [p.code for p in picks if p.code in failing]
-                plan.roadmap.append({"term": label, "courses": [p.code for p in picks],
+                plan.roadmap.append({"term": label,
+                                     "courses": [c for p in picks for c in (p.code, *p.bundle)],
+                                     "items": [p.label for p in picks],
                                      "hours": sum(p.hours for p in picks), "failed": failed})
                 for p in picks:
                     if p.code in failing:
                         failing.discard(p.code)      # retaken in a later term
                         continue
                     done_sim.add(p.code)
+                    done_sim.update(p.bundle)
                     if p.kind == "elective":
                         left[p.group] = left.get(p.group, 0) - p.hours
                 t = _next_term(*t)
                 label = _next_label(label)
             while plan.roadmap and not plan.roadmap[-1]["courses"]:
                 plan.roadmap.pop()          # trailing empty terms aren't part of the plan
+            to_arrange = arranged(research, done_sim)
+            if to_arrange:
+                plan.warnings.append("Arrange with the department (needs a placement, a faculty "
+                                     "mentor or instructor approval): " + "; ".join(to_arrange[:3]) + ".")
             still = [r.label() for r in research.requirements
-                     if not any(o in done_sim for o in r.options)]
+                     if not any(o in done_sim for o in r.options) and r.label() not in to_arrange]
             if still:
                 plan.warnings.append("The roadmap couldn't place " + ", ".join(still[:6])
                                      + ": they need prerequisites that aren't in the listed "

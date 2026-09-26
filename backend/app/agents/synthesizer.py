@@ -112,8 +112,9 @@ def synthesize_stream(plan: QueryPlan, evidence: list[Evidence], notes: list[str
 def extractive_answer(plan: QueryPlan, evidence: list[Evidence], notes: list[str]) -> str:
     """Grounded answer without an LLM: tool outputs and page text verbatim."""
     out = ["_AI summary is unavailable right now — here's what the sources say directly._", ""]
-    structured = [e for e in evidence if e.kind in ("dates", "prereq", "plan")]
-    pages = [e for e in evidence if e.kind not in ("dates", "prereq", "plan")]
+    computed = ("topic", "dates", "prereq", "plan")
+    structured = [e for e in evidence if e.kind in computed]
+    pages = [e for e in evidence if e.kind not in computed]
 
     for e in structured:
         out.append(f"{e.text} [{e.n}]")
@@ -121,7 +122,7 @@ def extractive_answer(plan: QueryPlan, evidence: list[Evidence], notes: list[str
     for e in pages[:3]:
         out.append(f"{e.text[:500]} [{e.n}]")
         out.append("")
-    if any(e.kind not in ("catalog", "dates", "prereq", "plan") for e in pages[:3]):
+    if any(e.kind not in ("catalog", *computed) for e in pages[:3]):
         out.append("_Rules can change between catalog years: confirm on the cited official page._")
     for n in notes:
         out.append(f"\n_Note: {n}_")

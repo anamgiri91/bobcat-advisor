@@ -102,7 +102,7 @@ def build_evidence(profile: StudentProfile, flags: list[str], research: Research
     add("audit", "Degree audit — fact-checked requirements", audit.to_text(), "auditor")
 
     for c in plan.courses:
-        line = (f"{c.code} {c.title}: {c.hours} credit hours; recommended for {plan.term} "
+        line = (f"{c.label}{' ' + c.title if c.title else ''}: {c.hours} credit hours; recommended for {plan.term} "
                 f"as a {c.kind} course ({c.requirement}). Reasons: {'; '.join(c.reasons) or 'eligible'}.")
         if c.offering:
             line += f" Offering history: {c.offering}."
@@ -177,7 +177,7 @@ def extractive_memo(profile: StudentProfile, flags: list[str], evidence: list[Ev
     out += ["", f"**Recommended for {plan.term}**"]
     for c in plan.courses:
         cite = n.get(f"Schedule planner — {c.code}")
-        line = f"- {c.code} {c.title} ({c.hours} hrs): {'; '.join(c.reasons) or 'eligible'}"
+        line = f"- {c.label}{' ' + c.title if c.title else ''} ({c.hours} hrs): {'; '.join(c.reasons) or 'eligible'}"
         out.append(line + f" [{cite}].")
     warn_n = n["Schedule planner — load, deferrals and warnings"]
     watch = [f"- {f} [1]." for f in flags]
