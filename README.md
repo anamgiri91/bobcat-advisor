@@ -1,8 +1,8 @@
 # Bobcat Advisor
 
 A multi-agent AI advisor for Texas State University CS students. It answers
-course questions from the official catalog, **computes** prerequisite
-eligibility instead of guessing it, builds a next-term plan from the live
+course questions from the official catalog, computes prerequisite
+eligibility, builds a next-term plan from the live
 TXST catalog, cites every claim, and verifies its own answers before you see
 them.
 
@@ -10,8 +10,7 @@ them.
 > · "What's the last day to drop?" · "What's the textbook for CS3358?" ·
 > "I've taken CS1428 and CS2308, what can I take next?"
 
-It stores no data about individual instructors and declines questions about
-them. Not affiliated with Texas State University.
+
 
 ## Highlights
 
