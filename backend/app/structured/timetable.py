@@ -23,6 +23,11 @@ sections a student schedules; the two are cross-checked in tests.
 Courses that can't be placed are reported with a reason ("no sections
 listed for Spring 2027", "every section overlaps your busy times") and the
 rest are still scheduled.
+
+For registration day, each chosen section also gets a backup: another
+section of the same course that still fits the rest of that timetable
+(same hard constraints, no clash), so a full class doesn't mean starting
+over. CRNs are listed so they can be pasted into the registration form.
 """
 
 from __future__ import annotations
@@ -103,10 +108,16 @@ def _loose_time(t: str) -> int | None:
     return parse_time(t)
 
 
+def _section_dict(s: Section) -> dict:
+    return {**s.to_dict(), "id": s.id, "full": s.is_full,
+            "times": [m.label() for m in s.meetings] or ["online / no set time"]}
+
+
 @dataclass
 class TimetableOption:
     sections: list[Section]
     penalty: int
+    backups: dict[str, Section | None] = field(default_factory=dict)   # course -> backup section
 
     @property
     def days(self) -> str:
@@ -115,9 +126,9 @@ class TimetableOption:
 
     def to_dict(self) -> dict:
         return {"penalty": self.penalty, "days_on_campus": self.days,
-                "sections": [{**s.to_dict(), "id": s.id, "full": s.is_full,
-                              "times": [m.label() for m in s.meetings] or ["online / no set time"]}
-                             for s in self.sections]}
+                "sections": [_section_dict(s) for s in self.sections],
+                "backups": {c: (_section_dict(b) if b else None) for c, b in self.backups.items()},
+                "crns": ", ".join(s.crn for s in self.sections if s.crn)}
 
     def to_text(self) -> str:
         return "; ".join(f"{s.id} ({', '.join(m.label() for m in s.meetings) or 'online, no set time'}"
@@ -257,6 +268,24 @@ def _solve_cpsat(groups: list[list[Section]], p: Preferences, k: int) -> list[Ti
     return options
 
 
+def backup_sections(option: TimetableOption, groups: dict[str, list[Section]],
+                    p: Preferences) -> dict[str, Section | None]:
+    """For each chosen section, another section of the same course that fits
+    the rest of this timetable: least extra penalty, then most open seats."""
+    out: dict[str, Section | None] = {}
+    for chosen in option.sections:
+        others = [s for s in option.sections if s is not chosen]
+        best, best_key = None, None
+        for alt in groups.get(chosen.course, []):
+            if alt.id == chosen.id or any(alt.conflicts(o) for o in others):
+                continue
+            key = (penalty(others + [alt], p), -(alt.seats_open or 0), alt.id)
+            if best_key is None or key < best_key:
+                best, best_key = alt, key
+        out[chosen.course] = best
+    return out
+
+
 def _solver_name() -> str:
     choice = settings.TIMETABLE_SOLVER
     if choice == "search":
@@ -303,6 +332,9 @@ def build_timetable(courses: list[str], term: str, prefs: Preferences | None = N
                     break
             else:
                 result.note = "These courses can't all fit together with your constraints."
+        by_course = dict(zip(placed, groups, strict=True))
+        for o in options:
+            o.backups = backup_sections(o, by_course, p)
         result.options = options
         sp.attributes.update(solver=result.solver, options=len(options), unplaced=len(result.unplaced))
     return result

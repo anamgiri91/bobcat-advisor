@@ -13,6 +13,7 @@ Everything is computed from the Postgres chat log (messages.trace etc.), so
 
 from __future__ import annotations
 
+import datetime as dt
 import statistics
 from collections import Counter, defaultdict
 
@@ -21,7 +22,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Feedback, Message
+from ..models import Feedback, Message, UsageCount
 from ..services.protection import answer_cache
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -69,6 +70,11 @@ def get_analytics(db: Session = Depends(get_db)):
             "not_helpful": next((c for h, c in helpful_counts if h is False), 0),
         },
         "verifier_pass_rate": round(avg_pass, 3) if avg_pass is not None else None,
+        "usage_30d": dict(db.execute(
+            select(UsageCount.event, func.sum(UsageCount.count))
+            .where(UsageCount.day >= dt.date.today() - dt.timedelta(days=30))
+            .group_by(UsageCount.event)
+        ).all()),
     }
 
 

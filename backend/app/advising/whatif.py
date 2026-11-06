@@ -119,8 +119,8 @@ class _Run:
     plan: SchedulePlan
 
 
-def _plan(profile: StudentProfile, browser: Browser, minor: str | None = None,
-          fail: set[str] | None = None) -> tuple[_Run | None, list[str]]:
+def plan_once(profile: StudentProfile, browser: Browser, minor: str | None = None,
+              fail: set[str] | None = None) -> tuple[_Run | None, list[str]]:
     found = research(profile, browser)
     report, verified = fact_check(found, profile, browser.pages)
     notes: list[str] = []
@@ -212,7 +212,7 @@ def run_scenario(raw: dict, scenario: dict, browser: Browser) -> Outcome:
 
     profile, _ = build_profile(raw)
     minor = (scenario.get("minor") or "").strip() if kind == "add_minor" else None
-    run, plan_notes = _plan(profile, browser, minor, fail)
+    run, plan_notes = plan_once(profile, browser, minor, fail)
     notes += plan_notes
     if run is None:
         return Outcome(kind or "scenario", description, None, None, None, None, 0, notes=notes)
@@ -226,7 +226,7 @@ def what_if(raw: dict, scenarios: list[dict], browser: Browser | None = None) ->
     browser = browser or Browser(max_pages=40)   # pages are cached across scenarios
     with span("advising.whatif", scenarios=len(scenarios)) as s:
         base_profile, flags = build_profile(raw)
-        base, _ = _plan(base_profile, browser)
+        base, _ = plan_once(base_profile, browser)
         baseline = estimate(base_profile, base.audit, base.plan, "baseline", "Your current plan",
                             base.research)
         outcomes = []

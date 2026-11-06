@@ -117,3 +117,33 @@ describe("misconfigured API address", () => {
     expect(fetchMock.mock.calls[0][0]).toMatch(/\/career\/stream$/);
   });
 });
+
+describe("files and counters", () => {
+  it("sends a PDF as application/pdf and text as text/plain", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, headers: { get: () => "application/json" }, json: async () => ({ completed: [] }) }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File(["%PDF"], "a.pdf", { type: "application/pdf" });
+    await api.importAudit(file);
+    await api.importAudit("CS 1428 A 4");
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/advise\/import$/);
+    expect(fetchMock.mock.calls[0][1].headers["Content-Type"]).toBe("application/pdf");
+    expect(fetchMock.mock.calls[0][1].body).toBe(file);
+    expect(fetchMock.mock.calls[1][1].headers["Content-Type"]).toBe("text/plain; charset=utf-8");
+  });
+
+  it("returns files as blobs and server errors as messages", async () => {
+    const blob = new Blob(["x"]);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, headers: { get: () => "application/pdf" }, blob: async () => blob })));
+    expect(await api.prepSheet({ year: "junior" })).toBe(blob);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 404, headers: { get: () => "application/json" },
+      json: async () => ({ detail: "No upcoming academic calendar dates" }) })));
+    await expect(api.calendar("Fall 2026")).rejects.toThrow("No upcoming academic calendar dates");
+  });
+
+  it("counting never throws", () => {
+    vi.stubGlobal("fetch", vi.fn(() => { throw new Error("blocked"); }));
+    expect(() => api.track("view_chat")).not.toThrow();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("offline"); }));
+    expect(() => api.track("view_chat")).not.toThrow();
+  });
+});

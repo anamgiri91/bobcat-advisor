@@ -93,6 +93,12 @@ def test_timetables_are_always_valid_and_optimal(instance):
         assert sorted(s.course for s in o.sections) == sorted(placed)          # one per course
         assert not any(a.conflicts(b) for a, b in itertools.combinations(o.sections, 2))
         assert not any(m.overlaps(b) for s in o.sections for m in s.meetings for b in prefs.busy)
+        for course, backup in o.backups.items():          # registration-day backups
+            if backup is not None:
+                others = [s for s in o.sections if s.course != course]
+                assert backup.course == course and backup not in o.sections
+                assert not any(backup.conflicts(s) for s in others)
+                assert not any(m.overlaps(b) for m in backup.meetings for b in prefs.busy)
 
 
 # -- prerequisite graph ---------------------------------------------------------------

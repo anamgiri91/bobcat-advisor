@@ -123,6 +123,9 @@ class AdviseRequest(BaseModel):
     latest_end: str | None = Field(None, max_length=8)
     busy: list[str] = Field(default_factory=list, max_length=10)   # ["TR 12:00-17:00"]
     modality: str | None = Field(None, max_length=10)
+    # From an imported degree audit / transcript (POST /api/advise/import)
+    hours_earned: int | None = Field(None, ge=0, le=300)
+    import_questions: list[str] = Field(default_factory=list, max_length=6)
 
 
 class Scenario(BaseModel):

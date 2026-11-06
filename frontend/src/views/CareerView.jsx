@@ -150,6 +150,7 @@ export default function CareerView({ initialGoal = "", initialCompleted }) {
     abortRef.current = controller;
     setError(null);
     setRun({ agents: {}, visits: [], searches: [], running: true });
+    api.track("career_submit");
     if (window.innerWidth < 1024) resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     const update = (fn) => setRun((r) => ({ ...r, ...fn(r) }));
     const body = {
@@ -172,7 +173,10 @@ export default function CareerView({ initialGoal = "", initialCompleted }) {
           else if (type === "browse") update((r) => ({ visits: [...r.visits, data] }));
           else if (type === "resources") update(() => ({ resources: data.resources, dropped: data.dropped }));
           else if (type === "memo") update(() => ({ memo: data.text, mode: data.mode }));
-          else if (type === "done") update(() => ({ running: false }));
+          else if (type === "done") {
+            update(() => ({ running: false }));
+            api.track("career_complete");
+          }
           else if (type === "error") throw new Error(data.message);
         },
         controller.signal

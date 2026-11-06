@@ -29,6 +29,34 @@ async function request(path, options = {}) {
   }
 }
 
+/** Like request(), for responses that are files (PDF, calendar). */
+async function requestBlob(path, options = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, options);
+  } catch (e) {
+    throw e instanceof TypeError ? new Error(UNREACHABLE) : e;
+  }
+  if (isHtml(res)) throw new Error(NOT_API);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `Request failed: ${res.status}`);
+  }
+  return res.blob();
+}
+
+/** Hand a Blob to the browser as a download. */
+export function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // Render's free plan sleeps when idle; the first request can take ~a minute.
 export const SLOW_MS = 5000;
 export const FIRST_EVENT_TIMEOUT_MS = 90000;
@@ -168,4 +196,35 @@ export const api = {
     request("/plan", { method: "POST", body: JSON.stringify({ completed }) }),
   whatIf: (profile, scenarios) =>
     request("/advise/whatif", { method: "POST", body: JSON.stringify({ profile, scenarios }) }),
+
+  /** A degree audit or transcript: a PDF File, or its text. Read in memory, never stored. */
+  importAudit: (fileOrText) =>
+    request("/advise/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": typeof fileOrText === "string" ? "text/plain; charset=utf-8" : fileOrText.type || "application/pdf",
+      },
+      body: fileOrText,
+    }),
+  prepSheet: (profile) =>
+    requestBlob("/advise/prep-sheet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    }),
+  calendar: (term) => requestBlob(`/advise/calendar.ics?term=${encodeURIComponent(term)}`),
+
+  /** Anonymous feature counter (no user, session or device id). Never throws. */
+  track: (event) => {
+    try {
+      fetch(`${BASE}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      /* counting must never break the page */
+    }
+  },
 };

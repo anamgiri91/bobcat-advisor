@@ -32,6 +32,13 @@ them.
   each (in the order you can take them), and search for outside courses
   and certifications for what the catalog doesn't cover, opening every
   link to check it's live and on topic before showing it (see below).
+- **Import your degree audit.** Upload the PDF of a degree audit or
+  unofficial transcript (or paste its text) and the Advisor fills itself in:
+  courses, transfer, AP and test credit, repeats, hours, GPA. Read in
+  memory and never stored (see below).
+- **Ready for advising and registration.** A one-page advising prep sheet
+  (PDF), the term's deadlines as a calendar file, and a backup section with
+  CRNs ready to copy for every course, in case a class fills up.
 - **What-if planning.** Switch major, add a minor, fail a course or change
   the load and see how the graduation term moves.
 - **Production-ready.** OpenTelemetry traces and metrics with a latency and
@@ -331,6 +338,10 @@ Tools: `search_catalog`, `search_knowledge_base`, `course_info`, `plan_next_cour
 | GET | `/api/career/paths` | Career paths the app knows |
 | POST | `/api/career/stream` | SSE: `{career, completed, in_progress, include_certifications, free_only}` → skills, TXST courses, checked outside resources, roadmap |
 | POST | `/api/career` | Same as JSON |
+| POST | `/api/advise/import` | Body: a PDF (`application/pdf`) or the audit's text (`text/plain`) → courses passed / in progress / not counted, hours earned, GPA, classification, warnings. Nothing is stored |
+| POST | `/api/advise/prep-sheet` | Advise request → one-page advising prep sheet (PDF) |
+| GET | `/api/advise/calendar.ics?term=Spring 2027` | The term's deadlines as a calendar file (404 until calendar dates are loaded) |
+| POST | `/api/events` | `{event}` from a fixed list → anonymous daily counter |
 | POST | `/api/advise/whatif` | `{profile, scenarios: [{type: switch_major/add_minor/fail_course/change_load, ...}]}` → graduation term per scenario |
 | GET | `/api/health/live` | Liveness (process up) |
 | GET | `/api/health` | Readiness: database, index, LLM, telemetry |
@@ -363,6 +374,57 @@ requirements (e.g. CS 1309) and graduate courses are never recommended;
 skills taught outside CS (linear algebra, statistics) are never mapped to
 an invented TXST course number; costs are coarse labels and the UI says
 to check the provider's site; outside links are marked as not affiliated.
+
+## Degree audit import, prep sheet and registration help
+
+**Import.** Students used to tick courses one at a time, and the app
+couldn't see transfer, AP or dual credit, or a course retaken after a low
+grade. Now they can upload the PDF of their degree audit or unofficial
+transcript, or paste the audit page's text (`app/advising/transcript.py`).
+The parser works across layouts: a course record is a line with one course
+code and a grade next to its credit hours, and lines like "Still needed: 1
+Class in CS 3358" are requirements, not records.
+- A, B, C, P, S, CR and transfer grades count as passed. A D counts for
+  hours but not as passed for planning, because most CS and MATH
+  prerequisites need a C or better, and the student is told to ask about a
+  retake. F and W count for nothing.
+- A course taken twice counts once, with its best grade, and the student is
+  told which attempt was used.
+- Generic transfer credit ("HIST 1XXX") counts for hours, with a question
+  for the advisor about which requirement it covers.
+- The total hours, GPA, classification, major, degree and catalog year fill
+  the form, and the hours replace the course-count estimate in the audit.
+
+Privacy: the file is read in memory and dropped when the request ends. It is
+never written to disk, logged or put in a trace (spans carry counts only),
+the response is `Cache-Control: no-store`, and the parser never reads the
+student's name, ID or birth date. Tests check that a sample transcript's
+name and ID never appear in the response or the trace.
+
+**Prep sheet** (`app/advising/prep.py`). A one-page PDF for the advising
+appointment, computed with no LLM. It includes:
+- next term's courses, each with a first-choice and a backup section and
+  their CRNs
+- backup courses
+- the roadmap and a graduation estimate
+- what to confirm (unchecked prerequisites, approvals, courses to arrange)
+- up to five questions for the advisor, generated from what the plan
+  couldn't settle
+- the term's key dates
+
+Fonts and lists shrink until it fits one page. The same dates download as a
+calendar file with a reminder the day before each one; they come from the
+knowledge base's academic calendar (`data/kb_dates.jsonl`), so the file
+is empty until the weekly crawl has run.
+
+**Registration help.** For each section in a timetable, the solver also
+picks a backup: another section of the same course that fits the rest of
+that week. CRNs have copy buttons, plus "Copy all CRNs" for the
+registration form.
+
+**Usage counts.** `POST /api/events` keeps one counter per feature per day
+(a tab opened, a plan finished, a prep sheet downloaded), with no user,
+session, IP or device recorded, shown in `GET /api/analytics`.
 
 ## What-if planning
 

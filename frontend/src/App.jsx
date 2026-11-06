@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { api } from "./api";
 import Header from "./components/Header";
 import AdvisorView from "./views/AdvisorView";
 import CareerView from "./views/CareerView";
@@ -21,6 +22,9 @@ export default function App() {
     if (q) window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     return q;
   });
+
+  // Anonymous count of which views are used (no user or session id).
+  useEffect(() => api.track(`view_${tab}`), [tab]);
 
   useEffect(() => {
     const onHash = () => setTabState(tabFromHash());

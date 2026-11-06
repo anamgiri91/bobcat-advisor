@@ -101,6 +101,9 @@ class StudentProfile:
     latest_end: str | None = None
     busy: list[str] = field(default_factory=list)   # "TR 12:00-17:00"
     modality: str | None = None                # "in person" | "online" | "hybrid"
+    # Total hours earned, from an imported transcript or audit: includes
+    # transfer, AP and dual credit that course codes alone don't show.
+    hours_earned: int | None = None
 
     @property
     def planned_term(self) -> str:
@@ -147,6 +150,14 @@ class StudentProfile:
         if self.notes:
             lines.append(f"Student notes: {self.notes}")
         return "\n".join(lines)
+
+
+def _hours(value) -> int | None:
+    try:
+        hours = int(value)
+    except (TypeError, ValueError):
+        return None
+    return hours if 0 <= hours <= 300 else None
 
 
 def _term_year(value) -> int | None:
@@ -229,6 +240,7 @@ def build_profile(raw: dict) -> tuple[StudentProfile, list[str]]:
         latest_end=(str(raw["latest_end"])[:8] if raw.get("latest_end") else None),
         busy=[str(b)[:40] for b in (raw.get("busy") or [])][:10],
         modality=(str(raw["modality"]).lower()[:10] if raw.get("modality") else None),
+        hours_earned=_hours(raw.get("hours_earned")),
     )
 
     # Advisor-style flags. Phrased as things to check, not rules: exact
@@ -241,7 +253,8 @@ def build_profile(raw: dict) -> tuple[StudentProfile, list[str]]:
     if target < 12:
         flags.append(f"{target} hours is below full-time (12); this can affect financial aid "
                      "and scholarships.")
-    earned = sum(credit_hours(c) for c in completed)
+    earned = (profile.hours_earned if profile.hours_earned is not None
+              else sum(credit_hours(c) for c in completed))
     lo = _CLASSIFICATION_HOURS[year]
     if completed and earned < lo:
         flags.append(f"The courses listed add up to about {earned} hours, fewer than a typical "

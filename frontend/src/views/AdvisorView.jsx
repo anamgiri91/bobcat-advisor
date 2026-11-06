@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { api, saveBlob } from "../api";
 import CoursePicker, { spaced } from "../components/CoursePicker";
+import ImportAudit from "../components/ImportAudit";
 import RichText from "../components/RichText";
 import { AgentSteps, Badge, Card, INPUT, Label, Section, StepList, SubmitBar, Toggle, Visits, WakingNotice } from "../components/ui";
 
@@ -76,6 +77,31 @@ export function WeekGrid({ option }) {
   );
 }
 
+/** Copy a CRN (or a list) for the registration form. */
+export function CopyCrn({ crn, label }) {
+  const [state, setState] = useState("idle");
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(crn);
+      setState("copied");
+      api.track("crn_copy");
+    } catch {
+      setState("failed");
+    }
+    setTimeout(() => setState("idle"), 1500);
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Copy for the registration form"
+      className="font-mono text-[0.68rem] border border-border rounded px-1.5 py-0.5 bg-white hover:border-maroon/50"
+    >
+      {state === "copied" ? "Copied" : state === "failed" ? "Select and copy it" : label || `CRN ${crn} ⧉`}
+    </button>
+  );
+}
+
 export function Timetable({ timetable, prefs }) {
   const [idx, setIdx] = useState(0);
   const option = timetable.options[idx];
@@ -105,17 +131,42 @@ export function Timetable({ timetable, prefs }) {
       {option ? (
         <>
           <WeekGrid option={option} />
-          <ul className="mt-3 space-y-1 text-xs">
-            {option.sections.map((s) => (
-              <li key={s.id} className="flex flex-wrap gap-x-2">
-                <span className="font-mono font-semibold">{s.id}</span>
-                <span>{s.times.join(", ")}</span>
-                {s.modality && <span className="text-muted">{s.modality}</span>}
-                {s.seats_open != null && <span className="text-muted">{s.seats_open} seats open</span>}
-                {s.crn && <span className="text-muted">CRN {s.crn}</span>}
-              </li>
-            ))}
+          <p className="font-display text-[0.7rem] uppercase tracking-wider text-muted mt-3 mb-1">For registration</p>
+          <ul className="space-y-1.5 text-xs">
+            {option.sections.map((s) => {
+              const backup = option.backups?.[s.course];
+              return (
+                <li key={s.id} className="border border-border rounded-lg px-2.5 py-2">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-mono font-semibold">{s.id}</span>
+                    <span>{s.times.join(", ")}</span>
+                    {s.modality && <span className="text-muted">{s.modality}</span>}
+                    {s.seats_open != null && <span className="text-muted">{s.seats_open} seats open</span>}
+                    {s.crn && <CopyCrn crn={s.crn} />}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-muted">
+                    <span>If it's full:</span>
+                    {backup ? (
+                      <>
+                        <span className="font-mono text-ink">{backup.id}</span>
+                        <span>{backup.times.join(", ")}</span>
+                        {backup.seats_open != null && <span>{backup.seats_open} open</span>}
+                        {backup.crn && <CopyCrn crn={backup.crn} />}
+                      </>
+                    ) : (
+                      <span>no other section fits this week</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
+          {option.crns && (
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+              <CopyCrn crn={option.crns} label="Copy all CRNs" />
+              <span className="font-mono text-muted">{option.crns}</span>
+            </div>
+          )}
         </>
       ) : (
         <p className="text-xs text-amber-800">{timetable.note || "No clash-free timetable was found."}</p>
@@ -168,6 +219,7 @@ export function WhatIf({ body, courses }) {
     setError(null);
     try {
       setResult(await api.whatIf(body, scenarios));
+      api.track("whatif_run");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -315,6 +367,23 @@ function Schedule({ schedule }) {
           </div>
         ))}
       </div>
+      {schedule.alternates?.length > 0 && (
+        <div className="mt-3 text-xs">
+          <p className="font-display font-bold">Backup courses</p>
+          <p className="text-muted mb-1">If one of these is full or cancelled, these also count:</p>
+          <ul className="space-y-0.5">
+            {schedule.alternates.map((a) => (
+              <li key={a.code}>
+                <span className="font-mono">{[a.code, ...(a.bundle || [])].map(spaced).join(" + ")}</span>
+                {a.title && ` ${a.title}`}
+                <span className="text-muted">
+                  {a.instead_of ? ` · instead of ${spaced(a.instead_of)}` : ` · ${a.reason}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {schedule.deferred.length > 0 && (
         <details className="mt-3 text-xs">
           <summary className="cursor-pointer text-muted">Not this term ({schedule.deferred.length})</summary>
@@ -418,6 +487,54 @@ function FactCheck({ report }) {
   );
 }
 
+const slug = (term) => term.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+/** The one-page advising prep sheet and the term's deadlines as a calendar file. */
+export function AdvisorPrep({ body, term }) {
+  const [busy, setBusy] = useState(null);
+  const [message, setMessage] = useState(null);
+  async function download(kind) {
+    setBusy(kind);
+    setMessage(null);
+    try {
+      if (kind === "pdf") {
+        saveBlob(await api.prepSheet(body), `advising-prep-${slug(term)}.pdf`);
+        api.track("prep_sheet");
+      } else {
+        saveBlob(await api.calendar(term), `txst-deadlines-${slug(term)}.ics`);
+        api.track("calendar");
+      }
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const button =
+    "text-xs font-display font-bold uppercase tracking-wide rounded-lg px-3 py-2 disabled:opacity-60";
+  return (
+    <Card title="Bring this to your advisor">
+      <p className="text-xs text-muted">
+        A one-page PDF: next term's courses with backup sections and CRNs, your roadmap, what to confirm and questions
+        to ask. Appointments are short; this keeps yours on the decisions.
+      </p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        <button type="button" disabled={!!busy} onClick={() => download("pdf")} className={`${button} bg-maroon text-white hover:bg-maroon-light`}>
+          {busy === "pdf" ? "Preparing…" : "Download prep sheet (PDF)"}
+        </button>
+        <button type="button" disabled={!!busy} onClick={() => download("ics")} className={`${button} border border-maroon text-maroon bg-white`}>
+          {busy === "ics" ? "Preparing…" : `Add ${term} deadlines to my calendar`}
+        </button>
+      </div>
+      {message && (
+        <p role="alert" className="text-xs text-amber-800 mt-2">
+          {message}
+        </p>
+      )}
+    </Card>
+  );
+}
+
 export default function AdvisorView({ onCareer }) {
   const [catalog, setCatalog] = useState([]);
   const [form, setForm] = useState({
@@ -444,6 +561,8 @@ export default function AdvisorView({ onCareer }) {
   const [run, setRun] = useState(null);
   const [error, setError] = useState(null);
   const [activeSource, setActiveSource] = useState(null);
+  const [imported, setImported] = useState(null);
+  const [beforeImport, setBeforeImport] = useState(null);
   const abortRef = useRef(null);
   const resultsRef = useRef(null);
 
@@ -459,6 +578,30 @@ export default function AdvisorView({ onCareer }) {
       next.has(v) ? next.delete(v) : next.add(v);
       return { ...f, [k]: next };
     });
+
+  // Fill the form from an imported audit; CS courses tick the picker, the rest go to "other".
+  function applyImport(result) {
+    setBeforeImport(form);
+    setImported(result);
+    const inCatalog = new Set(catalog.map((c) => c.code));
+    setForm((f) => ({
+      ...f,
+      completed: new Set(result.completed.filter((c) => inCatalog.has(c))),
+      other: result.completed.filter((c) => !inCatalog.has(c)).map(spaced).join(", "),
+      in_progress: result.in_progress.map(spaced).join(", "),
+      gpa: result.gpa != null ? String(Math.round(result.gpa * 100) / 100) : f.gpa,
+      year: result.classification || f.year,
+      major: result.major || f.major,
+      degree: result.degree || f.degree,
+      catalog_year: result.catalog_year || f.catalog_year,
+    }));
+  }
+
+  function undoImport() {
+    if (beforeImport) setForm(beforeImport);
+    setImported(null);
+    setBeforeImport(null);
+  }
 
   function buildBody() {
     const split = (s) => s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
@@ -481,6 +624,8 @@ export default function AdvisorView({ onCareer }) {
       latest_end: form.latest_end || null,
       busy: form.busy.split(/[;\n]/).map((x) => x.trim()).filter(Boolean),
       modality: form.modality || null,
+      hours_earned: imported?.hours_earned ?? null,
+      import_questions: (imported?.questions || []).slice(0, 6),
     };
   }
 
@@ -493,6 +638,7 @@ export default function AdvisorView({ onCareer }) {
     setActiveSource(null);
     const body = buildBody();
     setRun({ agents: {}, visits: [], memo: "", running: true, body });
+    api.track("advisor_submit");
     // On narrow screens the results are below the form.
     if (window.innerWidth < 1024) resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     const update = (fn) => setRun((r) => ({ ...r, ...fn(r) }));
@@ -513,7 +659,10 @@ export default function AdvisorView({ onCareer }) {
           else if (type === "token") update((r) => ({ memo: r.memo + data.text }));
           else if (type === "revision") update(() => ({ memo: data.answer }));
           else if (type === "verification") update(() => ({ verification: data.verification }));
-          else if (type === "done") update(() => ({ memo: data.answer, mode: data.mode, running: false }));
+          else if (type === "done") {
+            update(() => ({ memo: data.answer, mode: data.mode, running: false }));
+            api.track("advisor_complete");
+          }
           else if (type === "error") throw new Error(data.message);
         },
         controller.signal
@@ -566,6 +715,7 @@ export default function AdvisorView({ onCareer }) {
           </Section>
 
           <Section n={2} title="Courses you've passed">
+            <ImportAudit result={imported} onImported={applyImport} onUndo={undoImport} />
             <CoursePicker
               catalog={catalog}
               selected={form.completed}
@@ -734,6 +884,7 @@ export default function AdvisorView({ onCareer }) {
           {run?.timetable && (
             <Timetable key={JSON.stringify(run.timetable.courses)} timetable={run.timetable} prefs={run.ttPrefs} />
           )}
+          {run?.schedule && !run.running && <AdvisorPrep body={run.body} term={run.schedule.term} />}
           <div className="grid md:grid-cols-2 gap-4">
             {run?.audit && <Audit audit={run.audit} notes={run.researchNotes} />}
             {run?.factcheck && <FactCheck report={run.factcheck} />}

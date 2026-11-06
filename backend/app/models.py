@@ -17,16 +17,20 @@ messages        Every user question and every assistant answer, in order.
 
 feedback        Thumbs up/down against a specific assistant message.
                 One-to-one; re-voting overwrites the previous value.
+usage_counts    How many times a day each feature is used (a tab opened, a
+                plan finished, a prep sheet downloaded). Counters only: no
+                user, session, IP or device is recorded.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -109,3 +113,11 @@ class Feedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     message: Mapped[Message] = relationship(back_populates="feedback")
+
+
+class UsageCount(Base):
+    __tablename__ = "usage_counts"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    event: Mapped[str] = mapped_column(String(40), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)

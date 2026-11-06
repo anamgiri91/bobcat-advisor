@@ -116,6 +116,8 @@ class SchedulePlan:
     deferred: list[dict] = field(default_factory=list)
     roadmap: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    # Eligible courses that didn't make the cut: backups if a pick is full or cancelled.
+    alternates: list[dict] = field(default_factory=list)
 
     @property
     def total_hours(self) -> int:
@@ -253,6 +255,7 @@ class _Planner:
         term_sections = [s for s in load_sections() if s.term == planned]
         self.planned_term = planned
         self.term_courses = {s.course for s in term_sections} if term_sections else None
+        self.alternates: list[dict] = []
         self.seq_pos: dict[str, tuple[int, int]] = {}
         for tp in research.sequence:
             y = _year_of(tp.year)
@@ -397,6 +400,17 @@ class _Planner:
                 pool_hours[cand.group] = pool_hours.get(cand.group, 0) - h
             if hours >= target:
                 break
+        if detailed:
+            chosen = {p.code: p for p in picks}
+            self.alternates = []
+            for _score, cand, reasons, _conditions in scored:
+                if cand.code in chosen or len(self.alternates) >= 3:
+                    continue
+                same = next((p.code for p in picks if p.group == cand.group), None)
+                self.alternates.append({
+                    "code": cand.code, "title": self.title(cand.code), "bundle": list(cand.bundle),
+                    "hours": cand.hours or course_hours(cand.code, self.research), "kind": cand.kind,
+                    "reason": reasons[0] if reasons else "eligible", "instead_of": same})
         return picks, deferred
 
 
@@ -439,6 +453,7 @@ def plan_schedule(profile: StudentProfile, research: ResearchResult, audit: Audi
 
         plan.courses, plan.deferred = planner.plan_term(done, pools_left, term, detailed=True,
                                                         season=profile.semester)
+        plan.alternates = planner.alternates
         if not plan.courses:
             plan.warnings.append("No eligible courses were found for this term; check prerequisites "
                                  "with your advisor.")

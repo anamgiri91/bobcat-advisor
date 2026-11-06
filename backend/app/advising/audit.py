@@ -146,7 +146,9 @@ def audit(profile: StudentProfile, research: ResearchResult, report: FactCheckRe
         completed, in_progress = set(profile.completed), set(profile.in_progress)
         result = AuditResult(
             available=research.found,
-            hours_completed=sum(course_hours(c, research) for c in completed),
+            # An imported transcript states the real total (transfer and AP included).
+            hours_completed=(profile.hours_earned if profile.hours_earned is not None
+                             else sum(course_hours(c, research) for c in completed)),
             hours_in_progress=sum(course_hours(c, research) for c in in_progress),
         )
         if not research.found:
